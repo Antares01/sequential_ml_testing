@@ -3,6 +3,10 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 from sklearn.linear_model import LogisticRegressionCV
 from data.fund_data_names import SECTORS
+from pathlib import Path
+
+
+DATA_DIR = Path(__file__).resolve().parent
 
 
 def get_pcr_data(d=20, a=3, n=5000, test='power'):
@@ -27,7 +31,7 @@ def get_pcr_data(d=20, a=3, n=5000, test='power'):
 
 
 def get_hiv_data(n=1555):
-    df = pd.read_csv('../data/HIV.csv').dropna()
+    df = pd.read_csv(DATA_DIR / 'HIV.csv').dropna()
     features_names = df.columns[1:]
     n = min(n, df.shape[0])
     X = df.to_numpy()[:n, 1:]
@@ -46,13 +50,13 @@ def get_hiv_clf(X, j):
 
 def read_log_sector_data(fund="XLK", value='Open', nyears=10, date="2022-09-21"):
     sector = SECTORS[fund]
-    xdata = pd.read_csv(f"../data/xdata_{fund}_{sector}_{value}_{nyears}.csv", index_col='Date')
+    xdata = pd.read_csv(DATA_DIR / f"xdata_{fund}_{sector}_{value}_{nyears}.csv", index_col='Date')
     xdata = xdata.loc[xdata.index <= date]
     X = np.log(xdata.values[1:] / xdata.values[0:-1])
-    ydata = pd.read_csv(f"../data/ydata_{fund}_{sector}_{value}_{nyears}.csv", index_col='Date')
+    ydata = pd.read_csv(DATA_DIR / f"ydata_{fund}_{sector}_{value}_{nyears}.csv", index_col='Date')
     ydata = ydata.loc[ydata.index <= date]
     Y = np.log(ydata.values[1:] / ydata.values[0:-1])
-    beta_df = pd.read_csv(f"../data/data_imp_{fund}_{sector}_{value}_{nyears}.csv")
+    beta_df = pd.read_csv(DATA_DIR / f"data_imp_{fund}_{sector}_{value}_{nyears}.csv")
     beta = beta_df["important"].values
     features_names = beta_df["stock"].values
     return X, Y, beta, features_names

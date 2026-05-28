@@ -1,10 +1,15 @@
 import numpy as np
 from enum import Enum
 
+class BettingWeighting(Enum):
+    UNIFORM_MIXTURE = "UNIFORM_MIXTURE"
+    PREQUENTIAL = "PREQUENTIAL"
 
 class BettingFunction(Enum):
     sign = lambda a, b: np.sign(b - a)
     tanh = lambda a, b: np.tanh(20 * (b - a) / np.max((a, b)))
+    def exp(self, a, b, loss, m):
+        return np.exp(-a)/np.mean(np.exp(-b))
 
 
 class TestStatistic(Enum):
