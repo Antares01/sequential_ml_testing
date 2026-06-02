@@ -5,7 +5,7 @@ from sklearn.linear_model import LassoCV, Lasso
 from src.sampling_functions import get_data_statistics, sample_from_gaussian
 from warnings import simplefilter
 from sklearn.exceptions import ConvergenceWarning
-from src.utils import BettingWeighting, BettingFunction, TestStatistic, default, lasso_cv_online_learning
+from src.utils import LossEstimationBet, SignBet, CoinBetting, BettingStrategy, TanhBet, TestStatistic, default, lasso_cv_online_learning
 simplefilter("ignore", category=ConvergenceWarning)
 
 
@@ -15,10 +15,10 @@ class EcrtTester:
     """
 
     def __init__(self, batch_list=[2, 5, 10], n_init=50, K=20, j=0,
-                 g_func=BettingFunction.sign, test_statistic=TestStatistic.mse, offline=False,
+                 g_func=SignBet(), test_statistic=TestStatistic.mse, offline=False,
                  path="../results", load_name="", save_name="martingale_dict",
                  learn_conditional_distribution=get_data_statistics,
-                 sampling_func=sample_from_gaussian, sampling_args={}, weighting=BettingWeighting.UNIFORM_MIXTURE
+                 sampling_func=sample_from_gaussian, sampling_args={}
                  ):
         """
         :param batch_list: A list of batch sizes for the batch-ensemble.
@@ -63,7 +63,14 @@ class EcrtTester:
         self.sampling_args = sampling_args
         self.sampling_func = sampling_func
         self.learn_conditional_distribution = learn_conditional_distribution
-        self.weighting = weighting
+
+    def _default_martingale_dict(self):
+        if isinstance(self.g_func, CoinBetting):
+            M_size = self.g_func.M_values.shape[0]
+            return {"St": np.ones(M_size), "St_v": np.ones((1000, M_size)), "last_used_idx": self.n_init}
+        else:
+            return {"St": 1, "St_v": np.ones((1000,)), "last_used_idx": self.n_init}
+    
 
     def _initialize_martingales(self):
         if self.load_name:
@@ -108,15 +115,37 @@ class EcrtTester:
         self.model = model
         self.models_dict = models_dict
 
-    def _weight_martingale(self, St_v, wealth):
-        if self.weighting == BettingWeighting.UNIFORM_MIXTURE:
-            # Update the martingales using the average betting score.
+    def _update_g(self):
+        if isinstance(self.g_func, LossEstimationBet):
+            self.g_func.update() #TODO: implement in its class
+        else:
+            # do nothing
+            pass
+
+    def update_wealth(self, X, y, batch, test_idx, St_v):
+        wealth = 0
+        # Compute the MSE (or any other test statistic) of the original features once.
+        y_predict = self.model.predict(X[test_idx:test_idx + batch, :])
+        q = self.test_statistic(y_predict.ravel(), y[test_idx:test_idx + batch].ravel())
+        # Derandomize over self.K samples
+        for _ in range(self.K):
+            # The sampling function can be given as a parameter to the constructor of the E-crt
+            X_tilde = self._sample_dummy(X[test_idx:test_idx + batch, :])
+            y_tilde = self.model.predict(X_tilde)
+            # The statistic can be given as a parameter to the constructor of the E-crt
+            q_tilde = self.test_statistic(y_tilde.ravel(), y[test_idx:test_idx + batch].ravel())
+            wealth += self.g_func(q, q_tilde)
+        
+        if isinstance(self.g_func, CoinBetting):
             St_v = St_v * (1 + self.integral_vector * wealth/self.K)
+            St = np.max(St_v)
+            return St, St_v
+        elif isinstance(self.g_func, SignBet) or isinstance(self.g_func, TanhBet):
+            St_v = St_v * (1 + self.integral_vector * wealth/self.K) 
             St = np.mean(St_v)  # integral with uniform density.
             return St, St_v
-        elif self.weighting == BettingWeighting.PREQUENTIAL:
-            pass
-        
+
+
 
     def _update_martingale(self, X, y, batch, test_idx, St_v):
         """
@@ -130,20 +159,8 @@ class EcrtTester:
         :return: A scalar St, the result of the integral over the 1000 martingales, with uniform density.
         :return A vector St_v, with the updated martingales.
         """
-        wealth = 0
-        # Compute the MSE (or any other test statistic) of the original features once.
-        y_predict = self.model.predict(X[test_idx:test_idx + batch, :])
-        q = self.test_statistic(y_predict.ravel(), y[test_idx:test_idx + batch].ravel())
-        # For K iterations, sample the dummy features, compute the dummy MSE
-        # and update the wealth using the betting score function, g_func.
-        for k in range(self.K):
-            # The sampling function can be given as a parameter to the constructor of the E-crt
-            X_tilde = self._sample_dummy(X[test_idx:test_idx + batch, :])
-            y_tilde = self.model.predict(X_tilde)
-            # The statistic can be given as a parameter to the constructor of the E-crt
-            q_tilde = self.test_statistic(y_tilde.ravel(), y[test_idx:test_idx + batch].ravel())
-            wealth += self.g_func(q, q_tilde)
-        St, St_v = self._weight_martingale(St_v, wealth)
+        St, St_v = self.update_wealth(X, y, batch, test_idx, St_v)
+        self._update_g()
         return St, St_v
 
     def run(self, X, y, start_idx=None, alpha=0.05):

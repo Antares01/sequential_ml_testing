@@ -1,15 +1,40 @@
 import numpy as np
 from enum import Enum
+from abc import ABC, abstractmethod
 
-class BettingWeighting(Enum):
-    UNIFORM_MIXTURE = "UNIFORM_MIXTURE"
-    PREQUENTIAL = "PREQUENTIAL"
+class BettingStrategy(ABC):
+    @abstractmethod
+    def __call__(self, a, b):
+        pass
 
-class BettingFunction(Enum):
-    sign = lambda a, b: np.sign(b - a)
-    tanh = lambda a, b: np.tanh(20 * (b - a) / np.max((a, b)))
-    def exp(self, a, b, loss, m):
-        return np.exp(-a)/np.mean(np.exp(-b))
+    def update(self):
+        pass
+
+class SignBet(BettingStrategy):
+    def __call__(self, a, b):
+        return np.sign(b - a)
+
+class TanhBet(BettingStrategy):
+    def __init__(self, scale=20):
+        self.scale = scale
+
+    def __call__(self, a, b):
+        return np.tanh(self.scale * (b - a) / np.max((a, b)))
+
+class ExponentialBet(BettingStrategy):
+    pass
+
+class CoinBetting(BettingStrategy):
+    def __init__(self, M_values = np.linspace(0.01, 10, 100)):
+        self.M_values = M_values
+
+    def __call__(self, a, b):
+        return np.clip(b - a, -self.M_values, self.M_values) / self.M_values
+        
+        
+
+class LossEstimationBet(BettingStrategy):
+    pass
 
 
 class TestStatistic(Enum):
