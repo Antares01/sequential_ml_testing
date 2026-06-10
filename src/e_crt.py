@@ -5,7 +5,7 @@ from sklearn.linear_model import LassoCV, Lasso
 from src.sampling_functions import get_data_statistics, sample_from_gaussian
 from warnings import simplefilter
 from sklearn.exceptions import ConvergenceWarning
-from src.utils import LossEstimationBet, SignBet, CoinBetting, BettingStrategy, TanhBet, TestStatistic, default, lasso_cv_online_learning
+from src.utils import LossEstimationBet, SignBet, ExponentialBet, CoinBetting, BettingStrategy, TanhBet, TestStatistic, default, lasso_cv_online_learning
 simplefilter("ignore", category=ConvergenceWarning)
 
 
@@ -123,27 +123,51 @@ class EcrtTester:
             pass
 
     def update_wealth(self, X, y, batch, test_idx, St_v):
-        wealth = 0
-        # Compute the MSE (or any other test statistic) of the original features once.
-        y_predict = self.model.predict(X[test_idx:test_idx + batch, :])
-        q = self.test_statistic(y_predict.ravel(), y[test_idx:test_idx + batch].ravel())
+
+        # Different procedure for exponential betting
+
+        if (hasattr(self.g_func,'is_exponential_bet')):
+            # sample here
+            y_predict = self.model.predict(X[test_idx:test_idx + batch, :])
+            q = self.test_statistic(y_predict.ravel(), y[test_idx:test_idx + batch].ravel())
+            q_tilde_array = np.zeros(self.K)
+
         # Derandomize over self.K samples
-        for _ in range(self.K):
-            # The sampling function can be given as a parameter to the constructor of the E-crt
-            X_tilde = self._sample_dummy(X[test_idx:test_idx + batch, :])
-            y_tilde = self.model.predict(X_tilde)
-            # The statistic can be given as a parameter to the constructor of the E-crt
-            q_tilde = self.test_statistic(y_tilde.ravel(), y[test_idx:test_idx + batch].ravel())
-            wealth += self.g_func(q, q_tilde)
+            for i in range(self.K):
+                # The sampling function can be given as a parameter to the constructor of the E-crt
+                X_tilde = self._sample_dummy(X[test_idx:test_idx + batch, :])
+                y_tilde = self.model.predict(X_tilde)
+                # The statistic can be given as a parameter to the constructor of the E-crt
+                q_tilde_array[i] = self.test_statistic(y_tilde.ravel(), y[test_idx:test_idx + batch].ravel())
+            
+            St_v = self.g_func(q,q_tilde)
+
+            return np.mean(St_v), St_v
         
-        if isinstance(self.g_func, CoinBetting):
-            St_v = St_v * (1 + self.integral_vector * wealth/self.K)
-            St = np.max(St_v)
-            return St, St_v
-        elif isinstance(self.g_func, SignBet) or isinstance(self.g_func, TanhBet):
-            St_v = St_v * (1 + self.integral_vector * wealth/self.K) 
-            St = np.mean(St_v)  # integral with uniform density.
-            return St, St_v
+        else:
+
+            wealth = 0
+            # Compute the MSE (or any other test statistic) of the original features once.
+            y_predict = self.model.predict(X[test_idx:test_idx + batch, :])
+            q = self.test_statistic(y_predict.ravel(), y[test_idx:test_idx + batch].ravel())
+
+            # Derandomize over self.K samples
+            for _ in range(self.K):
+                # The sampling function can be given as a parameter to the constructor of the E-crt
+                X_tilde = self._sample_dummy(X[test_idx:test_idx + batch, :])
+                y_tilde = self.model.predict(X_tilde)
+                # The statistic can be given as a parameter to the constructor of the E-crt
+                q_tilde = self.test_statistic(y_tilde.ravel(), y[test_idx:test_idx + batch].ravel())
+                wealth += self.g_func(q, q_tilde)
+            
+            if isinstance(self.g_func, CoinBetting):
+                St_v = St_v * (1 + self.integral_vector * wealth/self.K)
+                St = np.max(St_v)
+                return St, St_v
+            elif isinstance(self.g_func, SignBet) or isinstance(self.g_func, TanhBet):
+                St_v = St_v * (1 + self.integral_vector * wealth/self.K) 
+                St = np.mean(St_v)  # integral with uniform density.
+                return St, St_v
 
 
 
@@ -162,6 +186,7 @@ class EcrtTester:
         St, St_v = self.update_wealth(X, y, batch, test_idx, St_v)
         self._update_g()
         return St, St_v
+    
 
     def run(self, X, y, start_idx=None, alpha=0.05):
         """

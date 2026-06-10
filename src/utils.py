@@ -22,7 +22,22 @@ class TanhBet(BettingStrategy):
         return np.tanh(self.scale * (b - a) / np.max((a, b)))
 
 class ExponentialBet(BettingStrategy):
-    pass
+    def __init__(self, eta_values = np.linspace(0, 10, 1001, endpoint=False)[1:]):
+        self.is_exponential_bet = True
+        self.eta_values = eta_values
+        self.history = np.ones_like(self.eta_values)
+    def __call__(self, a, b):
+        '''Inputs:
+         - a: scalar, average prediction loss over batch 
+         - b: 1d-array, average prediction loss over batch with sampled data.
+         Returns:
+         - 1d array of length len(eta_values) representing the Exp e-variable for different eta parameter choices
+         '''
+        c = b-a
+        d = self.eta_values[:,np.newaxis] * c[np.newaxis,:]
+        e = np.mean(np.exp(-d),axis=1)
+        return 1/e
+
 
 class CoinBetting(BettingStrategy):
     def __init__(self, M_values = np.linspace(0.01, 10, 100)):
