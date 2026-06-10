@@ -3,6 +3,7 @@ from enum import Enum
 from abc import ABC, abstractmethod
 
 class BettingStrategy(ABC):
+    history = None
     @abstractmethod
     def __call__(self, a, b):
         pass
@@ -10,45 +11,62 @@ class BettingStrategy(ABC):
     def update(self):
         pass
 
-class SignBet(BettingStrategy):
-    def __call__(self, a, b):
+
+class AntisymmetricBet(BettingStrategy):
+    n_samples = None
+    history = None
+
+    @abstractmethod
+    def g(self, a, b):
+        pass
+
+    def get_q(self, m, x_i, y_i, z_i):
+        return (m(x_i, z_i) - y_i)**2
+    
+    def get_one_plus_g(self, m, x_i, x_i_tilde, y_i, z_i):
+        q = self.get_q(m, x_i, y_i, z_i)
+        q_tilde = self.get_q(m, x_i_tilde, y_i, z_i)
+        return 1 + self.g(q, q_tilde)
+    
+    def derandomized_bet(self, sampler, m, x_i, y_i, z_i):
+        bet = 0
+        for _ in range(self.n_samples):
+            x_i_tilde = sampler()
+            bet += self.get_one_plus_g(m, x_i, x_i_tilde, y_i, z_i)
+        return bet / self.n_samples
+
+
+class SignBet(AntisymmetricBet):
+
+    def __init__(self, lambd = 1, lambd_values = np.linspace(0.01, 2, 100)):
+        self.lambd = lambd
+        self.lambd_values = lambd_values
+        self.history = np.ones_like(lambd_values)
+
+    def g(self, a, b):
         return np.sign(b - a)
 
-class TanhBet(BettingStrategy):
-    def __init__(self, scale=20):
-        self.scale = scale
 
-    def __call__(self, a, b):
+class TanhBet(AntisymmetricBet):
+    def __init__(self, lambd = 1, scale=20):
+        self.scale = scale
+        self.lambd = lambd  
+
+    def g(self, a, b):
         return np.tanh(self.scale * (b - a) / np.max((a, b)))
 
-class ExponentialBet(BettingStrategy):
-    def __init__(self, eta_values = np.linspace(0, 10, 1001, endpoint=False)[1:]):
-        self.is_exponential_bet = True
-        self.eta_values = eta_values
-        self.history = np.ones_like(self.eta_values)
-    def __call__(self, a, b):
-        '''Inputs:
-         - a: scalar, average prediction loss over batch 
-         - b: 1d-array, average prediction loss over batch with sampled data.
-         Returns:
-         - 1d array of length len(eta_values) representing the Exp e-variable for different eta parameter choices
-         '''
-        c = b-a
-        d = self.eta_values[:,np.newaxis] * c[np.newaxis,:]
-        e = np.mean(np.exp(-d),axis=1)
-        return 1/e
-
-
-class CoinBetting(BettingStrategy):
-    def __init__(self, M_values = np.linspace(0.01, 10, 100)):
+class CoinBetting(AntisymmetricBet):
+    def __init__(self, lambd = 1, M_values = np.linspace(0.01, 10, 100)):
         self.M_values = M_values
+        self.lambd = lambd
 
-    def __call__(self, a, b):
+    def g(self, a, b):
         return np.clip(b - a, -self.M_values, self.M_values) / self.M_values
         
-        
+class LossEstimationBet(AntisymmetricBet):
+    pass
 
-class LossEstimationBet(BettingStrategy):
+class ExponentialBet(BettingStrategy):
     pass
 
 
