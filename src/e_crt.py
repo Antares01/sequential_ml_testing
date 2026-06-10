@@ -155,6 +155,9 @@ class EcrtTester:
             for _ in range(self.K):
                 # The sampling function can be given as a parameter to the constructor of the E-crt
                 X_tilde = self._sample_dummy(X[test_idx:test_idx + batch, :])
+
+
+                
                 y_tilde = self.model.predict(X_tilde)
                 # The statistic can be given as a parameter to the constructor of the E-crt
                 q_tilde = self.test_statistic(y_tilde.ravel(), y[test_idx:test_idx + batch].ravel())

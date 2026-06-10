@@ -5,46 +5,72 @@ from sklearn.metrics import mean_squared_error, log_loss
 
 
 class BettingStrategy(ABC):
-    history = None
+    
     @abstractmethod
-    def __init__(self, loss = mean_squared_error):
+    def __init__(self, loss = mean_squared_error, prequential = True, parameters = None):
         self.loss = loss
-
+        self.parameters = parameters
+        self.past_martingales = np.ones_like(parameters)
+        self.prequential = prequential
     def __call__(self, a, b):
         pass
 
-    def update(self):
+    def wealth(self, model, x, x_tilde, y, z):
+        pass
+
+    def e_value(self, model, x, x_tilde, y, z):
+        wealths = self.wealth(model, x, x_tilde, y, z)
+        if self.prequential:
+            best_parameter_hat = np.argmax(self.past_martingales )
+            e_value = wealths[best_parameter_hat]
+        else:
+            e_value = np.mean(wealths)
+        self.past_martingales *= wealths
+        return e_value
+
+    def update(self, model, x, x_tilde, y, z):
         pass
 
 
 class AntisymmetricBet(BettingStrategy):
-    
-    def __init__(self):
-        self.history = None
 
-    @abstractmethod
-    def g_func(self, a, b):
-        pass
+    def __init__(self, g_func, update_g_func):
+        self.g_func = g_func
+        self.update_g_func = update_g_func
+        self_past_qs = []
+        
 
-    def get_statistic(self, m, x, y, z):
-        y_pred = m.predict([x, z])
+    def g_func(self, q, q_tilde): # Antisymetric function
+        g_value = np.alike(self.parameters)
+        for i, param in enumerate(self.parameters):
+            g_value[i] = self.g_func(q, q_tilde, param)
+        return g_value
+
+    def get_statistic(self, model, x, y, z):
+        y_pred = model.predict([x, z])
         return self.loss(y, y_pred)
     
-    def get_one_plus_g_func(self, m, x, x_tilde, y, z):
-        q = self.get_statistic(m, x, y, z)
-        q_tilde = self.get_statistic(m, x_tilde, y, z)
+    def get_one_plus_g_func(self, model, x, x_tilde, y, z):
+        q = self.get_statistic(model, x, y, z)
+        q_tilde = self.get_statistic(model, x_tilde, y, z)
         return 1 + self.g_func(q, q_tilde)
     
-    def derandomized_bet(self, m, x, y, z, x_tilde):
+    def derandomized_bet(self, model, x, x_tilde, y, z):
         bet = 0
         for k in range(x_tilde.shape[1]):
-            bet += self.get_one_plus_g_func(m, x, x_tilde[:, k], y, z)
+            bet += self.get_one_plus_g_func(model, x, x_tilde[:, k], y, z)
         return bet / x_tilde.shape[1]
+    
+    def wealth(self, model, x, x_tilde, y, z):
+        return self.derandomized_bet(model, x, x_tilde, y, z)
+
+    def update(self, model, q, q_tilde):
+        pass
 
 
 class SignBet(AntisymmetricBet):
 
-    def __init__(self, lambd = 1, lambd_values = np.linspace(0.01, 2, 100)):
+    def __init__(self, lambd = 0.99, lambd_values = np.linspace(0.01, 0.99, 100)):
         self.lambd = lambd
         self.lambd_values = lambd_values
         self.history = np.ones_like(lambd_values)
