@@ -1,10 +1,15 @@
 import numpy as np
 from enum import Enum
 from abc import ABC, abstractmethod
+from sklearn.metrics import mean_squared_error, log_loss
+
 
 class BettingStrategy(ABC):
     history = None
     @abstractmethod
+    def __init__(self, loss = mean_squared_error):
+        self.loss = loss
+
     def __call__(self, a, b):
         pass
 
@@ -13,27 +18,28 @@ class BettingStrategy(ABC):
 
 
 class AntisymmetricBet(BettingStrategy):
-    n_samples = None
-    history = None
+    
+    def __init__(self):
+        self.history = None
 
     @abstractmethod
-    def g(self, a, b):
+    def g_func(self, a, b):
         pass
 
-    def get_q(self, m, x_i, y_i, z_i):
-        return (m(x_i, z_i) - y_i)**2
+    def get_statistic(self, m, x, y, z):
+        y_pred = m.predict([x, z])
+        return self.loss(y, y_pred)
     
-    def get_one_plus_g(self, m, x_i, x_i_tilde, y_i, z_i):
-        q = self.get_q(m, x_i, y_i, z_i)
-        q_tilde = self.get_q(m, x_i_tilde, y_i, z_i)
-        return 1 + self.g(q, q_tilde)
+    def get_one_plus_g_func(self, m, x, x_tilde, y, z):
+        q = self.get_statistic(m, x, y, z)
+        q_tilde = self.get_statistic(m, x_tilde, y, z)
+        return 1 + self.g_func(q, q_tilde)
     
-    def derandomized_bet(self, sampler, m, x_i, y_i, z_i):
+    def derandomized_bet(self, m, x, y, z, x_tilde):
         bet = 0
-        for _ in range(self.n_samples):
-            x_i_tilde = sampler()
-            bet += self.get_one_plus_g(m, x_i, x_i_tilde, y_i, z_i)
-        return bet / self.n_samples
+        for k in range(x_tilde.shape[1]):
+            bet += self.get_one_plus_g_func(m, x, x_tilde[:, k], y, z)
+        return bet / x_tilde.shape[1]
 
 
 class SignBet(AntisymmetricBet):
@@ -43,7 +49,7 @@ class SignBet(AntisymmetricBet):
         self.lambd_values = lambd_values
         self.history = np.ones_like(lambd_values)
 
-    def g(self, a, b):
+    def g_func(self, a, b):
         return np.sign(b - a)
 
 
@@ -52,7 +58,7 @@ class TanhBet(AntisymmetricBet):
         self.scale = scale
         self.lambd = lambd  
 
-    def g(self, a, b):
+    def g_func(self, a, b):
         return np.tanh(self.scale * (b - a) / np.max((a, b)))
 
 class CoinBetting(AntisymmetricBet):
@@ -60,7 +66,7 @@ class CoinBetting(AntisymmetricBet):
         self.M_values = M_values
         self.lambd = lambd
 
-    def g(self, a, b):
+    def g_func(self, a, b):
         return np.clip(b - a, -self.M_values, self.M_values) / self.M_values
         
 class LossEstimationBet(AntisymmetricBet):
@@ -69,9 +75,6 @@ class LossEstimationBet(AntisymmetricBet):
 class ExponentialBet(BettingStrategy):
     pass
 
-
-class TestStatistic(Enum):
-    mse = lambda a, b: ((a - b) ** 2).mean()
 
 
 def get_martingale_values(martingale_dict):
