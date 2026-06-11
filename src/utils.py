@@ -3,7 +3,6 @@ import numpy as np
 from sklearn.neighbors import KernelDensity
 
 
-
 def quadratic_loss(y_pred, y_true):
     return (y_pred-y_true)**2
 
@@ -62,6 +61,29 @@ def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10
     return new_g
 
 
+def prepare_coin_betting_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10, M_start = 0.01, M_end = 5, M_num = 10):
+    lam_values = np.linspace(lam_start, lam_end, lam_num)
+    M_values = np.linspace(M_start, M_end, M_num)
+    parameters = []
+    for lam in lam_values:
+        for M in M_values:
+            parameters.append({"lambda": lam, "M": M})
+    return parameters
+
+def prepare_kernel_density_parameters(kernel_list = ["gaussian", "tophat", "epanechnikov", 'exponential', 'linear'], bandwidth_start = 0.01, bandwidth_end = 2, bandwidth_num = 10):
+    bandwidth_list = np.linspace(bandwidth_start, bandwidth_end, bandwidth_num)
+    parameters = []
+    for kernel in kernel_list:
+        for bandwidth in bandwidth_list:
+            parameters.append({"kernel": kernel, "bandwidth": bandwidth})
+    return parameters
+
+def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10, M_start = 0.01, M_end = 5, M_num = 10):
+    lam_values = np.linspace(lam_start, lam_end, lam_num)
+    parameters = []
+    for lam in lam_values:
+            parameters.append({"lambda": lam})
+    return parameters
 
 def get_martingale_values(martingale_dict):
     b_last_used_list = []
