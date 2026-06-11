@@ -1,50 +1,60 @@
 import numpy as np
 from enum import Enum
 from abc import ABC, abstractmethod
-from sklearn.metrics import mean_squared_error, log_loss
+from sklearn.neighbors import KernelDensity
 
+
+
+def quadratic_loss(y_pred, y_true):
+    return (y_pred-y_true)**2
 
 class BettingStrategy(ABC):
     
-    @abstractmethod
-    def __init__(self, loss = mean_squared_error, prequential = True, parameters = None):
+    def __init__(self, loss = quadratic_loss, prequential = True, parameters = None):
         self.loss = loss
         self.parameters = parameters
-        self.past_martingales = np.ones_like(parameters)
+        self.past_martingales = np.ones(len(parameters))
         self.prequential = prequential
     def __call__(self, a, b):
         pass
-
+    
+    @abstractmethod
     def wealth(self, model, x, x_tilde, y, z):
         pass
 
     def e_value(self, model, x, x_tilde, y, z):
         wealths = self.wealth(model, x, x_tilde, y, z)
         if self.prequential:
-            best_parameter_hat = np.argmax(self.past_martingales )
+            best_parameter_hat = np.argmax(self.past_martingales)
             e_value = wealths[best_parameter_hat]
         else:
             e_value = np.mean(wealths)
         self.past_martingales *= wealths
         return e_value
-
+    
+    @abstractmethod
     def update(self, model, x, x_tilde, y, z):
         pass
 
 
 class AntisymmetricBet(BettingStrategy):
 
-    def __init__(self, g_func, update_g_func):
-        self.g_func = g_func
+    def __init__(self, g_family, update_g_func, parameters, loss=quadratic_loss, prequential=True):
+        super().__init__(
+            loss=loss,
+            prequential=prequential,
+            parameters=parameters,
+        )
+        self.g_family = g_family
         self.update_g_func = update_g_func
-        self_past_qs = []
+        self.past_qs = []
         
 
-    def g_func(self, q, q_tilde): # Antisymetric function
-        g_value = np.alike(self.parameters)
+    def g_func(self, q, q_tilde): # Antisymetric function: takes batch qs and returns the g_func of each one of the parameters
+        g_value = np.zeros((q.shape[0],len(self.parameters)))
         for i, param in enumerate(self.parameters):
-            g_value[i] = self.g_func(q, q_tilde, param)
-        return g_value
+            g_value[:, i] = self.g_family(q, q_tilde, param)
+        return np.mean(g_value, axis=0)
 
     def get_statistic(self, model, x, y, z):
         y_pred = model.predict([x, z])
@@ -55,18 +65,53 @@ class AntisymmetricBet(BettingStrategy):
         q_tilde = self.get_statistic(model, x_tilde, y, z)
         return 1 + self.g_func(q, q_tilde)
     
-    def derandomized_bet(self, model, x, x_tilde, y, z):
+    def derandomized_bet(self, model, x, x_tildes, y, z):  # X_tilde is batch x B resample
         bet = 0
-        for k in range(x_tilde.shape[1]):
-            bet += self.get_one_plus_g_func(model, x, x_tilde[:, k], y, z)
-        return bet / x_tilde.shape[1]
+        for k in range(x_tildes.shape[1]):
+            bet += self.get_one_plus_g_func(model, x, x_tildes[:, k], y, z)
+        return bet / x_tildes.shape[1]
     
     def wealth(self, model, x, x_tilde, y, z):
         return self.derandomized_bet(model, x, x_tilde, y, z)
 
-    def update(self, model, q, q_tilde):
-        pass
+    def update(self, q, q_tildes):
+        self.past_qs.append((q, q_tildes))
+        self.g_family = self.update_g_func(self.past_qs, self.parameters)
 
+
+
+def update_g_func_kernel_density(history, parameters, resamplings = 10):
+    X = []
+
+    for q, q_tildes in history:
+
+        B = min(resamplings, q_tildes.shape[1])
+
+        for i in range(B):
+
+            pairs = np.column_stack([
+                q,
+                q_tildes[:, i]
+            ])
+
+            X.append(pairs)
+
+    X = np.vstack(X)
+
+    kdes = {}
+    for param in parameters:
+        key = (param["kernel"], param["bandwidth"])
+        kdes[key] = KernelDensity(kernel=param['kernel'], bandwidth=param['bandwidth']).fit(X)
+
+    def new_g(q, q_tilde, param):
+        points = np.column_stack([q, q_tilde])
+        points_inverse = np.column_stack([q_tilde, q])
+        key = (param["kernel"], param["bandwidth"])
+        q_orig = np.exp(kdes[key].score_samples(points))
+        q_inverse = np.exp(kdes[key].score_samples(points_inverse))
+        return (q_orig - q_inverse)/(q_orig + q_inverse)
+
+    return new_g
 
 class SignBet(AntisymmetricBet):
 
