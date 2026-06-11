@@ -8,13 +8,18 @@ from sklearn.neighbors import KernelDensity
 def quadratic_loss(y_pred, y_true):
     return (y_pred-y_true)**2
 
+def log_loss(y_pred, y_true, eps=1e-15):
+    y_pred = np.clip(y_pred, eps, 1 - eps)
+    return -(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
+
 class BettingStrategy(ABC):
     
-    def __init__(self, loss = quadratic_loss, prequential = True, parameters = None):
+    def __init__(self, loss = quadratic_loss, prequential = True, parameters = None, proba = False):
         self.loss = loss
         self.parameters = parameters
         self.past_martingales = np.ones(len(parameters))
         self.prequential = prequential
+        self.proba = proba
     def __call__(self, a, b):
         pass
     
@@ -39,11 +44,12 @@ class BettingStrategy(ABC):
 
 class AntisymmetricBet(BettingStrategy):
 
-    def __init__(self, g_family, update_g_func, parameters, loss=quadratic_loss, prequential=True):
+    def __init__(self, g_family, update_g_func, parameters, loss=quadratic_loss, prequential=True, proba = False):
         super().__init__(
             loss=loss,
             prequential=prequential,
             parameters=parameters,
+            proba=proba,
         )
         self.g_family = g_family
         self.update_g_func = update_g_func
@@ -57,8 +63,12 @@ class AntisymmetricBet(BettingStrategy):
         return np.mean(g_value, axis=0)
 
     def get_statistic(self, model, x, y, z):
-        y_pred = model.predict([x, z])
-        return self.loss(y, y_pred)
+        X = np.concatenate([x, z], axis=1)
+        if self.proba:
+            y_pred = model.predict_proba(X)
+        else: 
+            y_pred = model.predict(X)
+        return self.loss(y_pred, y)
     
     def get_one_plus_g_func(self, model, x, x_tilde, y, z):
         q = self.get_statistic(model, x, y, z)
@@ -109,7 +119,8 @@ def update_g_func_kernel_density(history, parameters, resamplings = 10):
         key = (param["kernel"], param["bandwidth"])
         q_orig = np.exp(kdes[key].score_samples(points))
         q_inverse = np.exp(kdes[key].score_samples(points_inverse))
-        return (q_orig - q_inverse)/(q_orig + q_inverse)
+        eps = 1e-12
+        return (q_orig - q_inverse)/(q_orig + q_inverse + eps)
 
     return new_g
 
