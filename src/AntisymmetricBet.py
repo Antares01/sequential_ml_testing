@@ -54,4 +54,6 @@ class AntisymmetricBet(BettingStrategy):
         self.past_qs.append((q, q_tildes))
         self.g_family = self.update_g_func(self.past_qs, self.parameters, self.g_family)
 
+        #should this also update self.past_martingales?
+
 
