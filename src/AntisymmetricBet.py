@@ -45,10 +45,12 @@ class AntisymmetricBet(BettingStrategy):
             bet += self.get_one_plus_g_func(model, x, x_tildes[:, k], y, z)
         return bet / x_tildes.shape[1]
     
-    def wealth(self, model, x, x_tilde, y, z):
-        return self.derandomized_bet(model, x, x_tilde, y, z)
+    def wealth(self, model, x, x_tildes, y, z):
+        return self.derandomized_bet(model, x, x_tildes, y, z)
 
-    def update(self, q, q_tildes):
+    def update(self, model, x, x_tildes, y, z):
+        q = self.get_statistic(model, x, y, z)# Not sure if this is eficient to recompute that many times the q and q_tildes
+        q_tildes = np.asarray([self.get_statistic(model, x_tildes[:,k], y, z) for k in range(x_tildes.shape[1])])
         self.past_qs.append((q, q_tildes))
         self.g_family = self.update_g_func(self.past_qs, self.parameters, self.g_family)
 

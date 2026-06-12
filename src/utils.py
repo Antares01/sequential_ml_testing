@@ -26,6 +26,7 @@ def g_family_tanh(q, q_tilde, param, scale=20):
     eps = 1e-12
     return param["lambda"]* np.tanh(scale * (q_tilde - q) / (np.max(q_tilde, q)+eps))
 
+
 def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10):
     X = []
 

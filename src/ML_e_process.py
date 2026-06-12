@@ -5,20 +5,21 @@ from sklearn.linear_model import LassoCV, Lasso
 from Sampler import get_data_statistics, sample_from_gaussian
 from warnings import simplefilter
 from sklearn.exceptions import ConvergenceWarning
+from Sampler import DefaultSampler
 from src.utils import LossEstimationBet, SignBet, ExponentialBet, CoinBetting, BettingStrategy, TanhBet, TestStatistic, default, lasso_cv_online_learning
 simplefilter("ignore", category=ConvergenceWarning)
 
 
-class EcrtTester:
+class ML_e_process:
     """
     Conditional Testing with e-CRT
     """
 
-    def __init__(self, batch_list=[2, 5, 10], n_init=50, K=20, j=0,
-                 g_func=SignBet(), test_statistic=TestStatistic.mse, offline=False,
-                 path="../results", load_name="", save_name="martingale_dict",
-                 learn_conditional_distribution=get_data_statistics,
-                 sampling_func=sample_from_gaussian, sampling_args={}
+    def __init__(self, batch_list=[2, 5, 10], n_init=50, b_resamplings=20, study_j=[0],
+                 betting_strategies=None, model=LassoCV(),
+                 #learn_conditional_distribution=get_data_statistics,
+                 sampling_func=None, prequential=True, #sampling_args={}
+                 online=False, learn_conditional_distribution=True,
                  ):
         """
         :param batch_list: A list of batch sizes for the batch-ensemble.
@@ -48,52 +49,30 @@ class EcrtTester:
             assert max_b % b == 0
         self.batch_list = batch_list
         self.n_init = n_init
-        self.K = K
-        self.j = j
-        self.g_func = g_func
-        self.test_statistic = test_statistic
-        self.offline = offline
-        self.path = path
-        self.load_name = load_name
-        self.save_name = save_name
-        self.integral_vector = np.linspace(0, 1, 1001, endpoint=False)[1:]
-        self._initialize_martingales()
+        self.b_resamplings = b_resamplings
+        self.study_j = study_j
+        if betting_strategies==None:
+            self.betting_strategies = {"kernel_bet": Antisymmetric()} #TODO: define default betting strategy
+        else:
+            self.betting_strategies = betting_strategies
+        self.online = online
         self.model = None
         self.models_dict = {}
-        self.sampling_args = sampling_args
-        self.sampling_func = sampling_func
+        if sampling_func == None:
+            self.sampling_func = {j: DefaultSampler for j in study_j} # TODO: initialize the conditional samplers
+        else:
+            self.sampling_func = sampling_func
         self.learn_conditional_distribution = learn_conditional_distribution
 
-    def _default_martingale_dict(self):
-        if isinstance(self.g_func, CoinBetting):
-            M_size = self.g_func.M_values.shape[0]
-            return {"St": np.ones(M_size), "St_v": np.ones((1000, M_size)), "last_used_idx": self.n_init}
-        else:
-            return {"St": 1, "St_v": np.ones((1000,)), "last_used_idx": self.n_init}
-    
 
-    def _initialize_martingales(self):
-        if self.load_name:
-            with open(f"{self.path}/{self.load_name}.json") as json_file:
-                self.martingale_dict = json.load(json_file)
-            for b in self.batch_list:
-                self.martingale_dict[b] = self.martingale_dict.pop(str(b))
-        else:
-            self.martingale_dict = {}
-            for b in self.batch_list:
-                self.martingale_dict[b] = {"St": 1,
-                                           "St_v": np.ones((1000,)),
-                                           "last_used_idx": self.n_init}
+    def _sample_conditional(self, X, feature_j):
+        X_tildes = np.empty((X.shape[0], self.b_resamplings))
+        sampler = self.sampling_func[feature_j]
 
-    def save_martingales(self):
-        if not os.path.isdir(self.path):
-            os.makedirs(self.path)
-        with open(f"{self.path}/{self.save_name}.json", 'w') as json_file:
-            json.dump(self.martingale_dict, json_file, default=default, indent=4)
+        for b in range(self.b_resamplings):
+            X_tildes[:, b] = sampler.sample(X, feature_j)
 
-    def _sample_dummy(self, X):
-        X_tilde = self.sampling_func(X, self.j, **self.sampling_args)
-        return X_tilde
+        return X_tildes
 
     def _initialize_online_lasso(self, X, y):
         # In the online learning we use 20 Lasso models to choose the best eta hyper-parameter.
@@ -115,80 +94,7 @@ class EcrtTester:
         self.model = model
         self.models_dict = models_dict
 
-    def _update_g(self):
-        if isinstance(self.g_func, LossEstimationBet):
-            self.g_func.update() #TODO: implement in its class
-        else:
-            # do nothing
-            pass
 
-    def update_wealth(self, X, y, batch, test_idx, St_v):
-
-        # Different procedure for exponential betting
-
-        if (hasattr(self.g_func,'is_exponential_bet')):
-            # sample here
-            y_predict = self.model.predict(X[test_idx:test_idx + batch, :])
-            q = self.test_statistic(y_predict.ravel(), y[test_idx:test_idx + batch].ravel())
-            q_tilde_array = np.zeros(self.K)
-
-        # Derandomize over self.K samples
-            for i in range(self.K):
-                # The sampling function can be given as a parameter to the constructor of the E-crt
-                X_tilde = self._sample_dummy(X[test_idx:test_idx + batch, :])
-                y_tilde = self.model.predict(X_tilde)
-                # The statistic can be given as a parameter to the constructor of the E-crt
-                q_tilde_array[i] = self.test_statistic(y_tilde.ravel(), y[test_idx:test_idx + batch].ravel())
-            
-            St_v = self.g_func(q,q_tilde)
-
-            return np.mean(St_v), St_v
-        
-        else:
-
-            wealth = 0
-            # Compute the MSE (or any other test statistic) of the original features once.
-            y_predict = self.model.predict(X[test_idx:test_idx + batch, :])
-            q = self.test_statistic(y_predict.ravel(), y[test_idx:test_idx + batch].ravel())
-
-            # Derandomize over self.K samples
-            for _ in range(self.K):
-                # The sampling function can be given as a parameter to the constructor of the E-crt
-                X_tilde = self._sample_dummy(X[test_idx:test_idx + batch, :])
-
-
-                
-                y_tilde = self.model.predict(X_tilde)
-                # The statistic can be given as a parameter to the constructor of the E-crt
-                q_tilde = self.test_statistic(y_tilde.ravel(), y[test_idx:test_idx + batch].ravel())
-                wealth += self.g_func(q, q_tilde)
-            
-            if isinstance(self.g_func, CoinBetting):
-                St_v = St_v * (1 + self.integral_vector * wealth/self.K)
-                St = np.max(St_v)
-                return St, St_v
-            elif isinstance(self.g_func, SignBet) or isinstance(self.g_func, TanhBet):
-                St_v = St_v * (1 + self.integral_vector * wealth/self.K) 
-                St = np.mean(St_v)  # integral with uniform density.
-                return St, St_v
-
-
-
-    def _update_martingale(self, X, y, batch, test_idx, St_v):
-        """
-        The online update of one batch of samples (a single update).
-        :param X: The full data set with d features.
-        :param y: The full labels set.
-        :param batch: The batch size b
-        :param test_idx: The index of the first new point to be used in the update.
-        The evaluation will be applied on the batch [test_idx : test_idx + batch].
-        :param St_v: A vector with 1000 values, hold the martingales from the previous update.
-        :return: A scalar St, the result of the integral over the 1000 martingales, with uniform density.
-        :return A vector St_v, with the updated martingales.
-        """
-        St, St_v = self.update_wealth(X, y, batch, test_idx, St_v)
-        self._update_g()
-        return St, St_v
     
 
     def run(self, X, y, start_idx=None, alpha=0.05):
