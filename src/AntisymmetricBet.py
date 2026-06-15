@@ -4,7 +4,7 @@ import numpy as np
 
 class AntisymmetricBet(BettingStrategy):
 
-    def __init__(self, g_family, update_g_func, parameters, loss=quadratic_loss, prequential=True, proba = False):
+    def __init__(self, g_family, update_g_func, parameters, past_qs=None, loss=quadratic_loss, prequential=True, proba = False):
         super().__init__(
             loss=loss,
             prequential=prequential,
@@ -13,7 +13,11 @@ class AntisymmetricBet(BettingStrategy):
         )
         self.g_family = g_family
         self.update_g_func = update_g_func
-        self.past_qs = []
+        if past_qs is not None:
+            self.past_qs = past_qs
+            self.g_family = self.update_g_func(self.past_qs, self.parameters, self.g_family)
+        else:
+            self.past_qs = []
         
 
     def g_func(self, q, q_tilde):

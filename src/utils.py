@@ -27,15 +27,12 @@ def g_family_tanh(q, q_tilde, param, scale=20):
     return param["lambda"]* np.tanh(scale * (q_tilde - q) / (np.max(q_tilde, q)+eps))
 
 
-def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10):
+def _prepare_kde_training_data(history, resamplings = 10):
     X = []
 
     for q, q_tildes in history:
-
         B = min(resamplings, q_tildes.shape[1])
-
         for i in range(B):
-
             pairs = np.column_stack([
                 q,
                 q_tildes[:, i]
@@ -43,23 +40,26 @@ def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10
 
             X.append(pairs)
 
-    X = np.vstack(X)
+    return np.vstack(X)
+
+def _kde_g(kdes, q, q_tilde, param):
+    points = np.column_stack([q, q_tilde])
+    points_inverse = np.column_stack([q_tilde, q])
+    key = (param["kernel"], param["bandwidth"])
+    q_orig = np.exp(kdes[key].score_samples(points))
+    q_inverse = np.exp(kdes[key].score_samples(points_inverse))
+    eps = 1e-12
+    return (q_orig - q_inverse)/(q_orig + q_inverse + eps)
+
+def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10):
+    X = _prepare_kde_training_data(history, resamplings)
 
     kdes = {}
     for param in parameters:
         key = (param["kernel"], param["bandwidth"])
         kdes[key] = KernelDensity(kernel=param['kernel'], bandwidth=param['bandwidth']).fit(X)
 
-    def new_g(q, q_tilde, param):
-        points = np.column_stack([q, q_tilde])
-        points_inverse = np.column_stack([q_tilde, q])
-        key = (param["kernel"], param["bandwidth"])
-        q_orig = np.exp(kdes[key].score_samples(points))
-        q_inverse = np.exp(kdes[key].score_samples(points_inverse))
-        eps = 1e-12
-        return (q_orig - q_inverse)/(q_orig + q_inverse + eps)
-
-    return new_g
+    return lambda q, q_tilde, param: _kde_g(kdes, q, q_tilde, param)
 
 
 def prepare_coin_betting_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10, M_start = 0.01, M_end = 5, M_num = 10):
