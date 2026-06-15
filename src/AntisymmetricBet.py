@@ -18,6 +18,8 @@ class AntisymmetricBet(BettingStrategy):
             self.g_family = self.update_g_func(self.past_qs, self.parameters, self.g_family)
         else:
             self.past_qs = []
+        self.current_qs = None
+        self.past_qs = []
         
 
     def g_func(self, q, q_tilde):
@@ -38,26 +40,27 @@ class AntisymmetricBet(BettingStrategy):
             y_pred = model.predict(X)
         return self.loss(y_pred, y)
     
-    def get_one_plus_g_func(self, model, x, x_tilde, y, z):
-        q = self.get_statistic(model, x, y, z)
-        q_tilde = self.get_statistic(model, x_tilde, y, z)
-        return 1 + self.g_func(q, q_tilde)
     
     def derandomized_bet(self, model, x, x_tildes, y, z):  # X_tilde is batch x B resample
         bet = 0
+        q = self.get_statistic(model, x, y, z)
+        q_tildes = []
         for k in range(x_tildes.shape[1]):
-            bet += self.get_one_plus_g_func(model, x, x_tildes[:, k], y, z)
+            q_tilde = self.get_statistic(model,  x_tildes[:, k], y, z)
+            q_tildes.append(q_tilde)
+            bet += 1 + self.g_func(q, q_tilde)
+        q_tildes = np.asarray(q_tildes)
+        self.current_qs = (q, q_tildes)
         return bet / x_tildes.shape[1]
     
     def wealth(self, model, x, x_tildes, y, z):
-        return self.derandomized_bet(model, x, x_tildes, y, z)
+        self.wealths = self.derandomized_bet(model, x, x_tildes, y, z)
+        return self.wealths
 
-    def update(self, model, x, x_tildes, y, z):
-        q = self.get_statistic(model, x, y, z)# Not sure if this is eficient to recompute that many times the q and q_tildes
-        q_tildes = np.asarray([self.get_statistic(model, x_tildes[:,k], y, z) for k in range(x_tildes.shape[1])])
-        self.past_qs.append((q, q_tildes))
+    def update(self):
+        self.past_qs.append(self.current_qs)
         self.g_family = self.update_g_func(self.past_qs, self.parameters, self.g_family)
-
+        self.past_martingales *= self.wealths
         #should this also update self.past_martingales?
 
 

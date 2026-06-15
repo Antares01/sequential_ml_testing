@@ -24,9 +24,8 @@ class BettingStrategy(ABC):
             e_value = wealths[best_parameter_hat]
         else:
             e_value = np.mean(wealths)
-        self.past_martingales *= wealths
         return e_value
     
     @abstractmethod
-    def update(self, model, x, x_tildes, y, z):
+    def update(self):
         pass

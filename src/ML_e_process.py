@@ -12,16 +12,22 @@ simplefilter("ignore", category=ConvergenceWarning)
 
 class ML_e_process:
     """
-    Conditional Testing with e-CRT
+    Conditional Testing with Machine Learning e-values
     """
 
     def __init__(self, batch_list=[2, 5, 10], n_init=50, b_resamplings=20, study_j=[0],
                  betting_strategies=None, model=LassoCV(),
                  #learn_conditional_distribution=get_data_statistics,
-                 sampling_func=None, prequential=True, #sampling_args={}
-                 online=False, learn_conditional_distribution=True,
+                 samplers=None, prequential=True, #sampling_args={}
+                 online_Lasso=False, learn_conditional_distribution=True,
+                 optional_stopping=True, 
                  ):
         """
+
+        optional_stopping: if the martingale is over the 1/alpha, then it stops, otherwise it continues computing the martingale
+
+
+
         :param batch_list: A list of batch sizes for the batch-ensemble.
         All batches must be divisors of the maximal one.
         :param n_init: The number of samples for the initial training.
@@ -55,19 +61,20 @@ class ML_e_process:
             self.betting_strategies = {"kernel_bet": Antisymmetric()} #TODO: define default betting strategy
         else:
             self.betting_strategies = betting_strategies
-        self.online = online
-        self.model = None
-        self.models_dict = {}
-        if sampling_func == None:
-            self.sampling_func = {j: DefaultSampler for j in study_j} # TODO: initialize the conditional samplers
+        self.online_Lasso = online_Lasso
+        self.model = model
+        self.models_dict = {} # For the online Lasso
+        if samplers == None:
+            self.samplers = {j: DefaultSampler for j in study_j} 
         else:
-            self.sampling_func = sampling_func
+            self.samplers = samplers
         self.learn_conditional_distribution = learn_conditional_distribution
+        self.optional_stopping = optional_stopping
 
 
-    def _sample_conditional(self, X, feature_j):
+    def _sample_conditionals(self, X, feature_j):
         X_tildes = np.empty((X.shape[0], self.b_resamplings))
-        sampler = self.sampling_func[feature_j]
+        sampler = self.sampler[feature_j]
 
         for b in range(self.b_resamplings):
             X_tildes[:, b] = sampler.sample(X, feature_j)
@@ -97,12 +104,9 @@ class ML_e_process:
 
     
 
-    def run(self, X, y, start_idx=None, alpha=0.05):
+    def martingales(self, X, y, start_idx=None, alpha=0.05):
         """
         :param X: The data matrix with size (n, d).
-        Note that even if you run using old martingales data, and start_idx is not None,
-        you should provide the old data. The data will not be used to update the martingales,
-        but will be used to train the learning model.
         :param y: A vector of labels with size (n, 1)
         :param start_idx: The first sample that will be used to update the martingales.
         All points before it will be used for training only. If None, the first sample will be n_init.
@@ -110,16 +114,25 @@ class ML_e_process:
         :return: Whether the null is rejected or not, i.e., whether the tested feature is important or not.
         """
         rejected = False
+        martingales = {
+            key: np.ones((len(self.study_j), X.shape[0]))
+            for key in self.betting_strategies
+        }
         if start_idx is None:
             start_idx = self.n_init
         # Train the model on the available data points, that are not used for the martingales update.
         # If you wish to use a different predictive model, please replace the Lasso model here.
-        if self.offline:
-            self.model = LassoCV(max_iter=10000, eps=5e-3).fit(X[:start_idx, :], y[:start_idx].ravel())
-        else:
+        if self.online_Lasso:
             self._initialize_online_lasso(X[:start_idx, :], y[:start_idx])
+        else:
+            self.model = self.model.fit(X[:start_idx, :], y[:start_idx].ravel())
         n = X.shape[0]
         # Run the sequential updates
+        update_points = sorted({
+            t
+            for batch in self.batch_list
+            for t in range(start_idx + batch, y.shape[0] + 1, batch)
+        })
         for new_points in np.arange(start_idx, n, 1):
             b_last_used_list = []
             st_list = []
