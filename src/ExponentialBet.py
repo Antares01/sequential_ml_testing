@@ -17,21 +17,32 @@ class ExponentialBet(BettingStrategy):
 
         # self.parameters and self.past_martingales already defined in the parent class
 
-    def get_statistic(self, model, x, y, z):
-        X = np.concatenate([x, z], axis=1)
+    def get_statistic(self, model, X, y):
         if self.proba:
             y_pred = model.predict_proba(X)
         else: 
             y_pred = model.predict(X)
         return self.loss(y_pred, y)
     
-    def wealth(self, model, x, x_tildes, y, z):
-        q = self.get_statistic(model, x, y, z)
-        q_tildes = np.asarray([self.get_statistic(model, x_tildes[:,k], y, z) for k in range(x_tildes.shape[1])])
+    def wealth(self, model, x, x_j_tildes, y, j):
+        q = self.get_statistic(model, x, y)
+
+        q_tildes = np.asarray([
+            self.get_statistic(
+                model,
+                np.column_stack([
+                    x[:, :j],               
+                    x_j_tildes[:, k],        
+                    x[:, j+1:]               
+                ]),
+                y
+            )
+            for k in range(x_j_tildes.shape[1])
+        ])
 
         # 1/exp_e_value calculation
         c = q_tildes - q
-        d = self.parameters[:,np.newline]*c[np.newline,:]
+        d = self.parameters[:,np.newaxis]*c[np.newaxis,:]
         e = np.mean(np.exp(-d), axis=1)
         if self.exact:
             K = q_tildes.shape[0]

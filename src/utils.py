@@ -79,12 +79,15 @@ def prepare_kernel_density_parameters(kernel_list = ["gaussian", "tophat", "epan
             parameters.append({"kernel": kernel, "bandwidth": bandwidth})
     return parameters
 
-def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10, M_start = 0.01, M_end = 5, M_num = 10):
+def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10): # For the sign e-value
     lam_values = np.linspace(lam_start, lam_end, lam_num)
     parameters = []
     for lam in lam_values:
             parameters.append({"lambda": lam})
     return parameters
+
+def prepare_exponential_parameters(eta_start = 0.01, eta_end = 1, eta_num = 10): # For the sign e-value
+    return np.linspace(eta_start, eta_end, eta_num)
 
 def get_martingale_values(martingale_dict):
     b_last_used_list = []

@@ -30,8 +30,7 @@ class AntisymmetricBet(BettingStrategy):
 
         return g_value
 
-    def get_statistic(self, model, x, y, z):
-        X = np.concatenate([x, z], axis=1)
+    def get_statistic(self, model, X, y):
         if self.proba:
             y_pred = model.predict_proba(X)
         else: 
@@ -39,20 +38,22 @@ class AntisymmetricBet(BettingStrategy):
         return self.loss(y_pred, y)
     
     
-    def derandomized_bet(self, model, x, x_tildes, y, z):  # X_tilde is batch x B resample
+    def derandomized_bet(self, model, X, X_j_tildes, y, j):  # X_tilde is batch x B resample
         bet = 0
-        q = self.get_statistic(model, x, y, z)
+        q = self.get_statistic(model, X, y)
         q_tildes = []
-        for k in range(x_tildes.shape[1]):
-            q_tilde = self.get_statistic(model,  x_tildes[:, k], y, z)
+        for k in range(X_j_tildes.shape[1]):
+            X_k = X.copy()
+            X_k[:, j] = X_j_tildes[:, k]
+            q_tilde = self.get_statistic(model,  X_k, y)
             q_tildes.append(q_tilde)
             bet += 1 + self.g_func(q, q_tilde)
         q_tildes = np.asarray(q_tildes)
         self.current_qs = (q, q_tildes)
-        return bet / x_tildes.shape[1]
+        return bet / X_j_tildes.shape[1]
     
-    def wealth(self, model, x, x_tildes, y, z):
-        self.wealths = self.derandomized_bet(model, x, x_tildes, y, z)
+    def wealth(self, model, x, X_j_tildes, y, j):
+        self.wealths = self.derandomized_bet(model, x, X_j_tildes, y, j)
         return self.wealths
 
     def update(self):

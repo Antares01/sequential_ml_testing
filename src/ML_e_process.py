@@ -88,13 +88,13 @@ class ML_e_process:
             }
 
     def _sample_conditionals(self, X, feature_j):
-        X_tildes = np.empty((X.shape[0], self.b_resamplings))
+        X_j_tildes = np.empty((X.shape[0], self.b_resamplings))
         sampler = self.sampler[feature_j]
 
         for b in range(self.b_resamplings):
-            X_tildes[:, b] = sampler.sample(X, feature_j)
+            X_j_tildes[:, b] = sampler.sample(X, feature_j)
 
-        return X_tildes
+        return X_j_tildes
 
 
     
@@ -136,9 +136,9 @@ class ML_e_process:
                 if new_points % b == 0:
                     end = min(new_points + b, n)
                     for j in self.study_j:
-                        X_tildes = self._sample_conditionals(X[new_points:end], j)
+                        X_j_tildes = self._sample_conditionals(X[new_points:end], j)
                         for strategy in self.betting_strategies:
-                            martingales[strategy][b][j, new_points:]*=self.bets_js_bs[j][b][strategy].e_value( self.model, X[new_points:end, j], X_tildes, y, X[new_points:end, -j])
+                            martingales[strategy][b][j, new_points:]*=self.bets_js_bs[j][b][strategy].e_value( self.model, X[new_points:end, :], X_j_tildes, y, j)
                             self.bets_js_bs[j][b][strategy].update()
         return martingales
 

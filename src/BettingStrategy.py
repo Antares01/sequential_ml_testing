@@ -14,11 +14,11 @@ class BettingStrategy(ABC):
         pass
     
     @abstractmethod
-    def wealth(self, model, x, x_tildes, y, z):
+    def wealth(self, model, X, X_j_tildes, y, j):
         pass
 
-    def e_value(self, model, x, x_tildes, y, z):
-        wealths = self.wealth(model, x, x_tildes, y, z)
+    def e_value(self, model, X, X_j_tildes, y, j):
+        wealths = self.wealth(model, X, X_j_tildes, y, j)
         if self.prequential:
             best_parameter_hat = np.argmax(self.past_martingales)
             e_value = wealths[best_parameter_hat]
