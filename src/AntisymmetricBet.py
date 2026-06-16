@@ -18,12 +18,7 @@ class AntisymmetricBet(BettingStrategy):
             self.g_family = self.update_g_func(self.past_qs, self.parameters, self.g_family)
         else:
             self.past_qs = []
-<<<<<<< HEAD
         self.current_qs = None
-        self.past_qs = []
-=======
->>>>>>> 53fc7be (saving the qs for the antisymmetric init)
-        
 
     def g_func(self, q, q_tilde):
         g_value = np.zeros(len(self.parameters))
