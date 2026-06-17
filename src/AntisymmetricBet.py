@@ -1,10 +1,11 @@
-from utils import quadratic_loss
+#from utils import quadratic_loss
+from sklearn.metrics import mean_squared_error, log_loss
 from BettingStrategy import BettingStrategy
 import numpy as np
 
 class AntisymmetricBet(BettingStrategy):
 
-    def __init__(self, g_family, update_g_func, parameters, past_qs=None, loss=quadratic_loss, prequential=True, proba = False):
+    def __init__(self, g_family, update_g_func, parameters, past_qs=None, loss=mean_squared_error, prequential=True, proba = False):
         super().__init__(
             loss=loss,
             prequential=prequential,
@@ -52,8 +53,8 @@ class AntisymmetricBet(BettingStrategy):
         self.current_qs = (q, q_tildes)
         return bet / X_j_tildes.shape[1]
     
-    def wealth(self, model, x, X_j_tildes, y, j):
-        self.wealths = self.derandomized_bet(model, x, X_j_tildes, y, j)
+    def wealth(self, model, x, x_j_tildes, y, j):
+        self.wealths = self.derandomized_bet(model, x, x_j_tildes, y, j)
         return self.wealths
 
     def update(self):

@@ -92,7 +92,7 @@ class ML_e_process:
         sampler = self.sampler[feature_j]
 
         for b in range(self.b_resamplings):
-            X_j_tildes[:, b] = sampler.sample(X, feature_j)
+            X_j_tildes[:, b] = sampler.sample(X)
 
         return X_j_tildes
 

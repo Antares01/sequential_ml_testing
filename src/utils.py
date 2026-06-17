@@ -24,7 +24,7 @@ def g_family_sign(q, q_tilde, param):
 
 def g_family_tanh(q, q_tilde, param, scale=20):
     eps = 1e-12
-    return param["lambda"]* np.tanh(scale * (q_tilde - q) / (np.max(q_tilde, q)+eps))
+    return param["lambda"]* np.tanh(scale * (q_tilde - q) / (max(q_tilde, q)+eps))
 
 
 def _prepare_kde_training_data(history, resamplings = 10):
@@ -79,14 +79,14 @@ def prepare_kernel_density_parameters(kernel_list = ["gaussian", "tophat", "epan
             parameters.append({"kernel": kernel, "bandwidth": bandwidth})
     return parameters
 
-def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10): # For the sign e-value
+def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10): # For the sign and tanh e-value
     lam_values = np.linspace(lam_start, lam_end, lam_num)
     parameters = []
     for lam in lam_values:
             parameters.append({"lambda": lam})
     return parameters
 
-def prepare_exponential_parameters(eta_start = 0.01, eta_end = 1, eta_num = 10): # For the sign e-value
+def prepare_exponential_parameters(eta_start = 0.01, eta_end = 1, eta_num = 10): # For the exponential e-value
     return np.linspace(eta_start, eta_end, eta_num)
 
 def get_martingale_values(martingale_dict):

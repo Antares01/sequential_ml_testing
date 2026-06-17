@@ -1,10 +1,11 @@
 from utils import quadratic_loss
+from sklearn.metrics import mean_squared_error, log_loss
 from BettingStrategy import BettingStrategy
 import numpy as np
 
 class ExponentialBet(BettingStrategy):
 
-    def __init__(self, parameters, loss=quadratic_loss, prequential=True, proba = False, exact = True):
+    def __init__(self, parameters, loss=mean_squared_error, prequential=True, proba = False, exact = True):
         super().__init__(
             loss=loss,
             prequential=prequential,
