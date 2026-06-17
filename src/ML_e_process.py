@@ -66,7 +66,7 @@ class ML_e_process:
             self.samplers = samplers
         self.learn_conditional_distribution = learn_conditional_distribution
         self.optional_stopping = optional_stopping
-        if self.bets_js_bs == None:
+        if bets_js_bs == None:
             self.bets_js_bs = {
                     j: {
                         b: {
@@ -118,7 +118,7 @@ class ML_e_process:
         update_points = sorted({
             t
             for batch in self.batch_list
-            for t in range(start_idx + batch, n + 1, batch)
+            for t in range(start_idx + batch, n, batch)
         })
         for new_points in update_points:
             # We first update the model and the conditional sampler
