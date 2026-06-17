@@ -105,7 +105,11 @@ class RegressorSampler(Sampler):
 
         fitted = self.model.predict(X_other)
 
-        residuals = np.random.permutation(self.residuals)
+        residuals = np.random.choice(
+            self.residuals,
+            size=fitted.shape[0],
+            replace=True  
+        )
 
         return fitted + residuals
     

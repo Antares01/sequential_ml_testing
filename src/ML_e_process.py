@@ -1,18 +1,11 @@
 import numpy as np
 from copy import deepcopy
 from AntisymmetricBet import AntisymmetricBet
-
-
-
-import json
-import os
 from sklearn.linear_model import LassoCV, Lasso
-from Sampler import get_data_statistics, sample_from_gaussian
 from warnings import simplefilter
 from sklearn.exceptions import ConvergenceWarning
 from Sampler import DefaultSampler
 
-from src.utils import LossEstimationBet, SignBet, ExponentialBet, CoinBetting, BettingStrategy, TanhBet, TestStatistic, default, lasso_cv_online_learning
 simplefilter("ignore", category=ConvergenceWarning)
 
 
@@ -23,10 +16,10 @@ class ML_e_process:
 
     def __init__(self, batch_list=[2, 5, 10], n_init=50, b_resamplings=20, study_j=[0],
                  betting_strategies=None, model=LassoCV(),
-                 #learn_conditional_distribution=get_data_statistics,
-                 samplers=None, #sampling_args={}
+                 samplers=None,
                  learn_conditional_distribution=True,
-                 optional_stopping=True, 
+                 optional_stopping=True,
+                 bets_js_bs=None, 
                  ):
         """
 
@@ -56,9 +49,6 @@ class ML_e_process:
         and returns the dummy features X_tilde.
         :param sampling_args: A dictionary with all the non-learned arguments to pass to the sampling functions.
         """
-        max_b = np.max(batch_list)
-        for b in batch_list:
-            assert max_b % b == 0
         self.batch_list = batch_list
         self.n_init = n_init
         self.b_resamplings = b_resamplings
@@ -76,20 +66,23 @@ class ML_e_process:
             self.samplers = samplers
         self.learn_conditional_distribution = learn_conditional_distribution
         self.optional_stopping = optional_stopping
-        self.bets_js_bs = {
-                j: {
-                    b: {
-                        key: deepcopy(strategy)
-                        for key, strategy in self.betting_strategy_classes.items()
+        if self.bets_js_bs == None:
+            self.bets_js_bs = {
+                    j: {
+                        b: {
+                            key: deepcopy(strategy)
+                            for key, strategy in self.betting_strategies.items()
+                        }
+                        for b in self.batch_list
                     }
-                    for b in self.list_bs
+                    for j in self.study_j
                 }
-                for j in self.list_js
-            }
+        else:
+            self.bets_js_bs = bets_js_bs
 
     def _sample_conditionals(self, X, feature_j):
         X_j_tildes = np.empty((X.shape[0], self.b_resamplings))
-        sampler = self.sampler[feature_j]
+        sampler = self.samplers[feature_j]
 
         for b in range(self.b_resamplings):
             X_j_tildes[:, b] = sampler.sample(X)
@@ -99,7 +92,7 @@ class ML_e_process:
 
     
 
-    def martingales(self, X, y, start_idx=None, alpha=0.05):
+    def martingales(self, X, y, start_idx=None):
         """
         :param X: The data matrix with size (n, d).
         :param y: A vector of labels with size (n, 1)
@@ -111,7 +104,7 @@ class ML_e_process:
         martingales = {
             strategy: {
                 b: np.ones((len(self.study_j), X.shape[0]))
-                for b in self.list_bs
+                for b in self.batch_list
             }
             for strategy in self.betting_strategies
         }
@@ -130,15 +123,16 @@ class ML_e_process:
         for new_points in update_points:
             # We first update the model and the conditional sampler
             self.model = self.model.fit(X[:new_points, :], y[:new_points].ravel())
-            for sampler in self.samplers:
-                sampler.fit(X[:new_points, :])
+            if self.learn_conditional_distribution:
+                for j in self.study_j:
+                    self.samplers[j].fit(X[:new_points, :])
             for b in self.batch_list:
                 if new_points % b == 0:
                     end = min(new_points + b, n)
                     for j in self.study_j:
                         X_j_tildes = self._sample_conditionals(X[new_points:end], j)
                         for strategy in self.betting_strategies:
-                            martingales[strategy][b][j, new_points:]*=self.bets_js_bs[j][b][strategy].e_value( self.model, X[new_points:end, :], X_j_tildes, y, j)
+                            martingales[strategy][b][j, new_points:]*=self.bets_js_bs[j][b][strategy].e_value( self.model, X[new_points:end, :], X_j_tildes, y[new_points:end], j)
                             self.bets_js_bs[j][b][strategy].update()
         return martingales
 
