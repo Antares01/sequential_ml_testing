@@ -103,7 +103,10 @@ class ML_e_process:
         """
         martingales = {
             strategy: {
-                b: np.ones((len(self.study_j), X.shape[0]))
+                b: {
+                    j: np.ones(X.shape[0])   # vector over time
+                    for j in self.study_j
+                }
                 for b in self.batch_list
             }
             for strategy in self.betting_strategies
@@ -132,7 +135,16 @@ class ML_e_process:
                     for j in self.study_j:
                         X_j_tildes = self._sample_conditionals(X[new_points:end], j)
                         for strategy in self.betting_strategies:
-                            martingales[strategy][b][j, new_points:]*=self.bets_js_bs[j][b][strategy].e_value( self.model, X[new_points:end, :], X_j_tildes, y[new_points:end], j)
+                            martingales[strategy][b][j][new_points:] *= (
+                                self.bets_js_bs[j][b][strategy].e_value(
+                                    self.model,
+                                    X[new_points:end, :],
+                                    X_j_tildes,
+                                    y[new_points:end],
+                                    j
+                                )
+                            )
+                            #martingales[strategy][b][j, new_points:]*=self.bets_js_bs[j][b][strategy].e_value( self.model, X[new_points:end, :], X_j_tildes, y[new_points:end], j)
                             self.bets_js_bs[j][b][strategy].update()
         return martingales
 
