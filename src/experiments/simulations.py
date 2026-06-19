@@ -122,7 +122,7 @@ def main(args):
                     prequential=True,
                     past_qs = past_qs
                 )
-                bets_js_bs[j][b] = strategy_kde
+                bets_js_bs[j][b] = {"kde": strategy_kde}
 
         #batch_list = [1, 2, 5]
         e_process = ML_e_process(batch_list=batch_list, n_init=50, b_resamplings=20, study_j=list_js,
@@ -134,6 +134,8 @@ def main(args):
                         learn_conditional_distribution=True,
                         optional_stopping=True, 
                         )
+
+        martingales = e_process.martingales(X, y=Y)
 
 
 
