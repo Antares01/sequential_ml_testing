@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from utils import quadratic_loss
+from sklearn.metrics import mean_squared_error, log_loss
 import numpy as np
 
 class BettingStrategy(ABC):
     
-    def __init__(self, loss = quadratic_loss, prequential = True, parameters = None, proba = False):
+    def __init__(self, loss = mean_squared_error, prequential = True, parameters = None, proba = False):
         self.loss = loss
         self.parameters = parameters
         self.past_martingales = np.ones(len(parameters))
