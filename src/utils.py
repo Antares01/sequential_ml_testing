@@ -1,6 +1,22 @@
 import numpy as np
 
 from sklearn.neighbors import KernelDensity
+from sklearn.linear_model import Lasso, LinearRegression
+from sklearn.ensemble import (
+    RandomForestRegressor,
+    ExtraTreesRegressor,
+    GradientBoostingRegressor,
+    HistGradientBoostingRegressor,
+    AdaBoostRegressor,
+    BaggingRegressor,
+    StackingRegressor
+)
+from sklearn.linear_model import RidgeCV, Ridge
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVR
+
+
 
 
 def quadratic_loss(y_pred, y_true):
@@ -134,3 +150,21 @@ def lasso_cv_online_learning(X, y, models_dict, val_prcg=0.2):
             best_alpha = alpha
             score = model_score
     return best_alpha
+
+
+
+def return_model(regressor_name, seed):
+    if regressor_name == "lr":
+        return LinearRegression()
+    elif regressor_name == "lasso":
+        return Lasso()
+    elif regressor_name == "dt":
+        return DecisionTreeRegressor(random_state=seed)
+    elif regressor_name == "rf":
+        return RandomForestRegressor(random_state=seed)
+    elif regressor_name == "gb":
+        return GradientBoostingRegressor(random_state=seed)
+    elif regressor_name == "nn":
+        return MLPRegressor(random_state=seed, max_iter=1000)
+    elif regressor_name == "svr":
+        return SVR()
