@@ -10,8 +10,7 @@ import os
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 import pyreadr
-from sklearn.impute import IterativeImputer
-
+from utils import return_model
 
 
 from pathlib import Path
@@ -19,14 +18,38 @@ from pathlib import Path
 def parse_args():
     parser = argparse.ArgumentParser(description="Convergence rates")
     parser.add_argument("--seeds", type=int, nargs="+", help="List of seeds")
-    #parser.add_argument("--correlation", type=float)
     parser.add_argument("--model", type=str)
+    parser.add_argument("--beta_strength", type=float)
     return parser.parse_args()
+
+
+def generate_dataset(n, beta=1.0, d=19, seed=None):
+    rng = np.random.default_rng(seed)
+
+    # Fixed parameters
+    W = rng.normal(size=d)
+    U = rng.normal(size=d)
+
+    # Generate Z ~ N(0, I_d)
+    Z = rng.normal(size=(n, d))
+
+    # Generate X | Z ~ N(U^T Z, 1)
+    X = Z @ U + rng.normal(size=n)
+
+    # Generate Y
+    epsilon = rng.normal(size=n)
+    Y = (Z @ W) ** 2 + beta * X + epsilon
+
+    # Design matrix: first column is X, remaining columns are Z
+    X_design = np.column_stack((X, Z))
+
+    return X_design, Y
 
 
 def main(args):
     #correlation_strength = args.correlation
     regressor = args.model
+
     for s in args.seeds:
         # Load RData file
         result = pyreadr.read_r('data/bike.RData')  # returns a dictionary
