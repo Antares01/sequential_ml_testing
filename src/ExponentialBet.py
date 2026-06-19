@@ -1,4 +1,3 @@
-from utils import quadratic_loss
 from sklearn.metrics import mean_squared_error, log_loss
 from BettingStrategy import BettingStrategy
 import numpy as np

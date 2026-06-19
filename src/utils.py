@@ -103,7 +103,7 @@ def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10): # Fo
 def prepare_exponential_parameters(eta_start = 0.01, eta_end = 1, eta_num = 10): # For the exponential e-value
     return np.linspace(eta_start, eta_end, eta_num)
 
-def initialize_kde_history(X, y, samplers, j_list, batches = [5], splits = 5, batches_to_draw_randomly = 10, resamplings = 10, model= LassoCV(), loss= mean_squared_error ):
+def initialize_kde_history(X, y, samplers, j_list, batches = [5], splits = 5, batches_to_draw_randomly = 20, resamplings = 10, model= LassoCV(), loss= mean_squared_error ):
     if(len(samplers) != len(j_list)):
         raise ValueError("The number of samplers should be equal to the number of features to be tested.")
 
@@ -113,7 +113,7 @@ def initialize_kde_history(X, y, samplers, j_list, batches = [5], splits = 5, ba
                     for j in j_list} 
                     for b in batches}
     y_pred = np.array([])
-    y_pred_tildes = {j : [np.array([]) for r in range(resamplings)] for j in j_list}
+    y_pred_tildes = {j : [np.array([]) for r in range(resamplings)] for j in j_list} # TODO: This needs to be changed so resamplings is resamplings_kde_estimate
     for train_idx, test_idx in cv.split(X, y):
         model_fold = clone(model)
         model_fold.fit(X[train_idx], y[train_idx])
@@ -205,3 +205,27 @@ def return_model(regressor_name, seed):
         return MLPRegressor(random_state=seed, max_iter=1000)
     elif regressor_name == "svr":
         return SVR()
+    
+
+
+def generate_dataset(n, beta=1.0, d=19, seed=None):
+    rng = np.random.default_rng(seed)
+
+    # Fixed parameters
+    W = rng.normal(size=d)
+    U = rng.normal(size=d)
+
+    # Generate Z ~ N(0, I_d)
+    Z = rng.normal(size=(n, d))
+
+    # Generate X | Z ~ N(U^T Z, 1)
+    X = Z @ U + rng.normal(size=n)
+
+    # Generate Y
+    epsilon = rng.normal(size=n)
+    Y = (Z @ W) ** 2 + beta * X + epsilon
+
+    # Design matrix: first column is X, remaining columns are Z
+    X_design = np.column_stack((X, Z))
+
+    return X_design, Y
