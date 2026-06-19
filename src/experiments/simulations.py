@@ -107,12 +107,12 @@ def main(args):
                     }
                     for j in list_js
                 }
-        q, q_tilde = initialize_kde_history(X[:n_init], Y[:n_init], sampdoria, list_js, batch_list, model = model_for_history)
+        samplers_kde_init = [DefaultSampler(j=j) for j in list_js]
+        q, q_tilde = initialize_kde_history(X[:n_init], Y[:n_init], samplers_kde_init, list_js, batch_list, model = model)
         for j in list_js:
             for b in batch_list:
                 params_kde = prepare_kernel_density_parameters()
-                model_for_history = model
-                sampdoria = [DefaultSampler(j=j)]
+                
                 
                 past_qs = list(zip(q[b], q_tilde[b][j]))
                 strategy_kde = AntisymmetricBet(
