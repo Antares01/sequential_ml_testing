@@ -1,5 +1,6 @@
 import numpy as np
-
+from sklearn.linear_model import LassoCV
+from sklearn.model_selection import KFold, cross_validate
 from sklearn.neighbors import KernelDensity
 from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.ensemble import (
@@ -17,14 +18,9 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
 
 
+from sklearn.base import clone
+from sklearn.metrics import mean_squared_error, log_loss
 
-
-def quadratic_loss(y_pred, y_true):
-    return (y_pred-y_true)**2
-
-def log_loss(y_pred, y_true, eps=1e-15):
-    y_pred = np.clip(y_pred, eps, 1 - eps)
-    return -(y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred))
 
 def update_g_func_static(history, parameters, g_family):
     return g_family
@@ -42,16 +38,18 @@ def g_family_tanh(q, q_tilde, param, scale=20):
     eps = 1e-12
     return param["lambda"]* np.tanh(scale * (q_tilde - q) / (max(q_tilde, q)+eps))
 
+def g_family_kde(q, q_tilde, param):
+    raise NotImplementedError("This function is not implemented. Give an history to the input so that update_g_func_kernel_density will create a g_family.")
 
 def _prepare_kde_training_data(history, resamplings = 10):
     X = []
 
     for q, q_tildes in history:
-        B = min(resamplings, q_tildes.shape[1])
+        B = min(resamplings, q_tildes.shape[0])
         for i in range(B):
             pairs = np.column_stack([
                 q,
-                q_tildes[:, i]
+                q_tildes[i]
             ])
 
             X.append(pairs)
@@ -87,7 +85,7 @@ def prepare_coin_betting_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10,
             parameters.append({"lambda": lam, "M": M})
     return parameters
 
-def prepare_kernel_density_parameters(kernel_list = ["gaussian", "tophat", "epanechnikov", 'exponential', 'linear'], bandwidth_start = 0.01, bandwidth_end = 2, bandwidth_num = 10):
+def prepare_kernel_density_parameters(kernel_list = ["gaussian", "tophat", "epanechnikov", 'exponential', 'linear'], bandwidth_start = 0.01, bandwidth_end = 3, bandwidth_num = 10):
     bandwidth_list = np.linspace(bandwidth_start, bandwidth_end, bandwidth_num)
     parameters = []
     for kernel in kernel_list:
@@ -104,6 +102,45 @@ def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10): # Fo
 
 def prepare_exponential_parameters(eta_start = 0.01, eta_end = 1, eta_num = 10): # For the exponential e-value
     return np.linspace(eta_start, eta_end, eta_num)
+
+def initialize_kde_history(X, y, samplers, j_list, batches = [5], splits = 5, batches_to_draw_randomly = 10, resamplings = 10, model= LassoCV(), loss= mean_squared_error ):
+    if(len(samplers) != len(j_list)):
+        raise ValueError("The number of samplers should be equal to the number of features to be tested.")
+
+    cv = KFold(n_splits=splits, shuffle=False)
+    q = {b : [] for b in batches}
+    q_tilde = {b : { j : [] 
+                    for j in j_list} 
+                    for b in batches}
+    y_pred = np.array([])
+    y_pred_tildes = {j : [np.array([]) for r in range(resamplings)] for j in j_list}
+    for train_idx, test_idx in cv.split(X, y):
+        model_fold = clone(model)
+        model_fold.fit(X[train_idx], y[train_idx])
+        y_pred = np.append(y_pred, model_fold.predict(X[test_idx]))
+        for j, sampler in zip(j_list, samplers):
+                sampler.fit(X[train_idx])
+                for r in range(resamplings): 
+                    X_j_tildes = sampler.sample(X[test_idx])
+                    X_test_tilde = X[test_idx].copy()
+                    X_test_tilde[:, j] = X_j_tildes
+                    y_pred_tildes[j][r] = np.append(y_pred_tildes[j][r], model_fold.predict(X_test_tilde))
+                
+        for b in batches:
+            for _ in range(batches_to_draw_randomly):
+                indices = np.random.choice(len(y_pred), size=b, replace=False)
+                y_pred_batch = y_pred[indices]
+                q[b].append(loss(y_pred_batch, y[indices]))
+                for j in j_list:
+                    q_tilde_temp = np.array([])
+                    for r in range(resamplings):
+                        y_pred_tilde_batch = y_pred_tildes[j][r][indices]
+                        l_tilde = loss(y_pred_tilde_batch, y[indices])
+                        q_tilde_temp = np.append(q_tilde_temp, l_tilde)
+                    q_tilde[b][j].append(q_tilde_temp)
+                        
+    return q, q_tilde
+               
 
 def get_martingale_values(martingale_dict):
     b_last_used_list = []
