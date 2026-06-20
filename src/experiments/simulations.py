@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from utils import return_model
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
@@ -22,6 +21,8 @@ from utils import prepare_kernel_density_parameters, g_family_kde, update_g_func
 from copy import deepcopy
 from Sampler import DefaultSampler
 from pathlib import Path
+import pickle
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Convergence rates")
@@ -43,7 +44,7 @@ def main(args):
 
     for s in args.seeds:
         X, Y = generate_dataset(n, beta=beta_strength, d=19, seed=s)
-        model = return_model(regressor_name=regressor_name)
+        model = return_model(regressor_name=regressor_name, seed=s)
         rng = np.random.default_rng(s)
 
 
@@ -122,12 +123,22 @@ def main(args):
                     prequential=True,
                     past_qs = past_qs
                 )
-                bets_js_bs[j][b] = {"kde": strategy_kde}
+                bets_js_bs[j][b]["kde"] =  strategy_kde
+
+        betting_strategies = {
+            "exponential": strategy_exp,
+            "coin_betting": strategy_cb,
+            "tanh": strategy_tanh,
+            "sign": strategy_sign,
+            "sign_preq": strategy_sign_preq,
+            "kde": strategy_kde
+
+        }# We use this just for the keys
 
         #batch_list = [1, 2, 5]
-        e_process = ML_e_process(batch_list=batch_list, n_init=50, b_resamplings=20, study_j=list_js,
-                        #betting_strategies=betting_strategies, 
-                        model=LassoCV(),
+        e_process = ML_e_process(batch_list=batch_list, n_init=n_init, b_resamplings=50, study_j=list_js,
+                        betting_strategies=betting_strategies, 
+                        model=model,
                         #learn_conditional_distribution=get_data_statistics,
                         bets_js_bs=bets_js_bs,
                         samplers=None, #sampling_args={}
@@ -136,6 +147,21 @@ def main(args):
                         )
 
         martingales = e_process.martingales(X, y=Y)
+
+
+        results_dir = Path("../results/csv/simulations")
+        results_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = (
+            results_dir
+            / f"simulations_beta{beta_strength}_model{regressor_name}_seed{s}_martingales.pkl"
+        )
+
+        with open(filename, "wb") as f:
+            pickle.dump(martingales, f)
+            
+
+
 
 
 

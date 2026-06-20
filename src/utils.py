@@ -191,6 +191,7 @@ def lasso_cv_online_learning(X, y, models_dict, val_prcg=0.2):
 
 
 def return_model(regressor_name, seed):
+    # "lr" "lasso" "dt" "rf" "gb" "nn" "svr"
     if regressor_name == "lr":
         return LinearRegression()
     elif regressor_name == "lasso":

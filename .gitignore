@@ -1,6 +1,6 @@
 /venv/
 .idea/
 *.pyc
-*.pkl
 *.html
 *.tex
+*log*
