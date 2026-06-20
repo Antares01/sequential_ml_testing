@@ -55,9 +55,11 @@ class ML_e_process:
         self.study_j = study_j
         if betting_strategies==None:
             self.betting_strategies = {"kernel_bet": AntisymmetricBet()} #TODO: define default betting strategy
+            self.startegy_names = ["kernel_bet"]
             
         else:
             self.betting_strategies = betting_strategies
+            self.startegy_names = list(betting_strategies.keys())
         self.model = model
         self.models_dict = {} # For the online Lasso
         if samplers == None:
@@ -79,6 +81,7 @@ class ML_e_process:
                 }
         else:
             self.bets_js_bs = bets_js_bs
+            self.startegy_names = list(bets_js_bs[self.study_j[0]][self.batch_list[0]].keys())
 
     def _sample_conditionals(self, X, feature_j):
         X_j_tildes = np.empty((X.shape[0], self.b_resamplings))
@@ -109,7 +112,7 @@ class ML_e_process:
                 }
                 for b in self.batch_list
             }
-            for strategy in self.betting_strategies
+            for strategy in self.startegy_names
         }
 
         if start_idx is None:
@@ -134,7 +137,7 @@ class ML_e_process:
                     end = min(new_points + b, n)
                     for j in self.study_j:
                         X_j_tildes = self._sample_conditionals(X[new_points:end], j)
-                        for strategy in self.betting_strategies:
+                        for strategy in self.startegy_names:
                             martingales[strategy][b][j][new_points:] *= (
                                 self.bets_js_bs[j][b][strategy].e_value(
                                     self.model,
