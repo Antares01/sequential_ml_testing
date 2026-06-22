@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=8G
 #SBATCH --partition=normal,parietal
-#SBATCH --array=0-299%2 # 2 * 5 * 30
+#SBATCH --array=0-299%5 # 2 * 5 * 30
 
 # ---- Arrays ----
 DATASETS=(0.0 3.0)
@@ -19,7 +19,7 @@ MODELS=(
 # lr lasso dt rf et gb hgb ab bag mlp svr knn xgb SuperLearner TabICL
 NUM_SEEDS=30
 
-seed=$((1+SLURM_ARRAY_TASK_ID % NUM_SEEDS))
+seed=$((10+SLURM_ARRAY_TASK_ID % NUM_SEEDS))
 
 dataset_idx=$((SLURM_ARRAY_TASK_ID % ${#DATASETS[@]}))
 model_idx=$((SLURM_ARRAY_TASK_ID % ${#MODELS[@]}))
