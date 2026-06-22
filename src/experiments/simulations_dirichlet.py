@@ -36,7 +36,7 @@ def parse_args():
 def main(args):
     #correlation_strength = args.correlation
     regressor_name= args.model
-    n = 2000
+    n = 3000
     n_init = 100
     batch_list = [2, 5, 10, 20]
     beta_strength = args.beta_strength
@@ -154,7 +154,7 @@ def main(args):
 
         filename = (
             results_dir
-            / f"simulations_dirich_beta{beta_strength}_model{regressor_name}_seed{s}_martingales.pkl"
+            / f"simulations_dirich_beta{beta_strength}_model{regressor_name}_n{n}_seed{s}_martingales.pkl"
         )
 
         with open(filename, "wb") as f:

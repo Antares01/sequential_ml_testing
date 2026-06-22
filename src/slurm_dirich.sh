@@ -7,13 +7,13 @@
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=8G
 #SBATCH --partition=normal,parietal
-#SBATCH --array=0-299%5 # 2 * 5 * 30
+#SBATCH --array=0-209%5 # 1 * 7 * 30
 
 # ---- Arrays ----
-DATASETS=(0.2 0.3 0.0 0.4 0.6)
+DATASETS=(0.1 0.15 0.2 0.25 0.3 0.0  0.6)
 
 MODELS=(
-    "lasso" "gb" #"lr" "lasso" "dt" "rf" "gb" "nn" "svr"
+    "gb" #"lr" "lasso" "dt" "rf" "gb" "nn" "svr"
 ) # 15
 
 # lr lasso dt rf et gb hgb ab bag mlp svr knn xgb SuperLearner TabICL
