@@ -230,3 +230,25 @@ def generate_dataset(n, beta=1.0, d=19, seed=None):
     X_design = np.column_stack((X, Z))
 
     return X_design, Y
+
+def generate_dataset_dirichlet(n, beta=1.0, d=19, seed=None):
+    rng = np.random.default_rng(seed)
+
+    # Fixed parameters
+    W = np.random.dirichlet(np.ones(d), size = 1).flatten()
+    U = np.random.dirichlet(np.ones(d), size = 1).flatten()
+
+    # Generate Z ~ N(0, I_d)
+    Z = rng.normal(size=(n, d))
+
+    # Generate X | Z ~ N(U^T Z, 1)
+    X = Z @ U + rng.normal(size=n)
+
+    # Generate Y
+    epsilon = rng.normal(size=n)
+    Y = (Z @ W) ** 2 + beta * X + epsilon
+
+    # Design matrix: first column is X, remaining columns are Z
+    X_design = np.column_stack((X, Z))
+
+    return X_design, Y
