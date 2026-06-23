@@ -16,7 +16,7 @@ from sklearn.linear_model import RidgeCV, Ridge
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
-
+from scipy.signal.windows import tukey
 
 from sklearn.base import clone
 from sklearn.metrics import mean_squared_error, log_loss
@@ -41,11 +41,13 @@ def g_family_tanh(q, q_tilde, param, scale=20):
 def g_family_kde(q, q_tilde, param):
     raise NotImplementedError("This function is not implemented. Give an history to the input so that update_g_func_kernel_density will create a g_family.")
 
-def _prepare_kde_training_data(history, resamplings = 10):
+def _prepare_kde_training_data(history, resamplings = 10, window_size = 800):
     X = []
 
     for q, q_tildes in history:
         B = min(resamplings, q_tildes.shape[0])
+        if(len(X) >= window_size):
+            break
         for i in range(B):
             pairs = np.column_stack([
                 q,
@@ -55,6 +57,14 @@ def _prepare_kde_training_data(history, resamplings = 10):
             X.append(pairs)
 
     return np.vstack(X)
+
+def _prepare_weight_vector(X, window_size = 800):
+    m = X.shape[0]
+    weight_vector = tukey(2 * window_size, alpha=0.3)[:window_size]
+    if m <= window_size:
+        weight_vector = weight_vector[window_size - m:]
+    return weight_vector
+
 
 def _kde_g(kdes, q, q_tilde, param):
     points = np.column_stack([q, q_tilde])
@@ -66,12 +76,13 @@ def _kde_g(kdes, q, q_tilde, param):
     return (q_orig - q_inverse)/(q_orig + q_inverse + eps)
 
 def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10):
-    X = _prepare_kde_training_data(history, resamplings)
-
+    window_size = 800
+    X = _prepare_kde_training_data(history, resamplings, window_size = 800)
+    weight_vector = _prepare_weight_vector(X, window_size = 800)
     kdes = {}
     for param in parameters:
         key = (param["kernel"], param["bandwidth"])
-        kdes[key] = KernelDensity(kernel=param['kernel'], bandwidth=param['bandwidth']).fit(X)
+        kdes[key] = KernelDensity(kernel=param['kernel'], bandwidth=param['bandwidth']).fit(X, sample_weight=weight_vector)
 
     return lambda q, q_tilde, param: _kde_g(kdes, q, q_tilde, param)
 
