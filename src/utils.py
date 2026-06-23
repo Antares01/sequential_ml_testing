@@ -60,7 +60,7 @@ def _prepare_kde_training_data(history, resamplings = 10, window_size = 800):
 
 def _prepare_weight_vector(X, window_size = 800):
     m = X.shape[0]
-    weight_vector = tukey(2 * window_size, alpha=0.3)[:window_size]
+    weight_vector = np.clip(tukey(2 * window_size, alpha=0.3), 0.1, 1.0)[:window_size] #lower bound to avoid zero weights
     if m <= window_size:
         weight_vector = weight_vector[window_size - m:]
     return weight_vector
