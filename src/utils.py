@@ -41,12 +41,12 @@ def g_family_tanh(q, q_tilde, param, scale=20):
 def g_family_kde(q, q_tilde, param):
     raise NotImplementedError("This function is not implemented. Give an history to the input so that update_g_func_kernel_density will create a g_family.")
 
-def _prepare_kde_training_data(history, resamplings = 10, window_size = 800):
+def _prepare_kde_training_data(history, resamplings, window_size):
     X = []
 
     for q, q_tildes in history:
         B = min(resamplings, q_tildes.shape[0])
-        if(len(X) >= window_size):
+        if(window_size is not None and len(X) >= window_size):
             break
         for i in range(B):
             pairs = np.column_stack([
@@ -58,8 +58,10 @@ def _prepare_kde_training_data(history, resamplings = 10, window_size = 800):
 
     return np.vstack(X)
 
-def _prepare_weight_vector(X, window_size = 800):
+def _prepare_weight_vector(X, window_size):
     m = X.shape[0]
+    if window_size is None:
+        return np.ones(m)
     weight_vector = np.clip(tukey(2 * window_size, alpha=0.3), 0.1, 1.0)[:window_size] #lower bound to avoid zero weights
     if m <= window_size:
         weight_vector = weight_vector[window_size - m:]
@@ -75,10 +77,12 @@ def _kde_g(kdes, q, q_tilde, param):
     eps = 1e-12
     return (q_orig - q_inverse)/(q_orig + q_inverse + eps)
 
-def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10):
-    window_size = 800
-    X = _prepare_kde_training_data(history, resamplings, window_size = 800)
-    weight_vector = _prepare_weight_vector(X, window_size = 800)
+def generate_update_kde(resamplings = 10, window_size = None):
+    return lambda history, parameters, g_family : update_g_func_kernel_density(history, parameters, g_family, resamplings = resamplings, window_size = window_size)
+
+def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10, window_size = None):
+    X = _prepare_kde_training_data(history, resamplings, window_size = window_size)
+    weight_vector = _prepare_weight_vector(X, window_size = window_size)
     kdes = {}
     for param in parameters:
         key = (param["kernel"], param["bandwidth"])
