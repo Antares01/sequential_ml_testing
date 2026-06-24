@@ -6,10 +6,10 @@
 #SBATCH --time=24:00:00
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=8G
-#SBATCH --partition=normal
+#SBATCH --partition=normal,parietal
 
 # 4 n_init × 4 datasets × 1 model × 20 seeds = 320 jobs
-#SBATCH --array=0-319%2
+#SBATCH --array=0-319%5
 
 # ---- Arrays ----
 N_INIT=(200 500 1000 2000)

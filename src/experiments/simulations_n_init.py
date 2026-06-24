@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument("--seeds", type=int, nargs="+", help="List of seeds")
     parser.add_argument("--model", type=str)
     parser.add_argument("--beta_strength", type=float)
-    parser.add_argument("--n_init", type=float)
+    parser.add_argument("--n_init", type=int)
     return parser.parse_args()
 
 
@@ -110,7 +110,7 @@ def main(args):
                     for j in list_js
                 }
         samplers_kde_init = [DefaultSampler(j=j) for j in list_js]
-        q, q_tilde = initialize_kde_history(X[:n_init], Y[:n_init], samplers_kde_init, list_js, batch_list, model = model)
+        q, q_tilde = initialize_kde_history(X[:n_init, :], Y[:n_init], samplers_kde_init, list_js, batch_list, model = model)
         for j in list_js:
             for b in batch_list:
                 params_kde = prepare_kernel_density_parameters()
