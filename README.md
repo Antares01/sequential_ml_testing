@@ -12,13 +12,13 @@ Conditional Independence Testing is a ubiquitous problem in scientific discovery
 
 Make use of an antisymmetric function $g$ (i.e. $g(a, b) = - g (b, a)$) and an importance statistic $q$ which we take to be the loss used to train the model.
 
-$ 1 + g(q_t,\tilde{q}_t).$
+$1 + g(q_t,\tilde{q}_t).$
 
 We consider:
 
 - Coin betting e-variables
 
-$$
+```math
 E_{\mathrm{cb}}^\lambda
 =
 1 + \lambda \left(
@@ -26,34 +26,40 @@ E_{\mathrm{cb}}^\lambda
 + \mathbb{E}_{\widetilde{X}\mid Z}\!\left[
 l\!\left(m(\widetilde{X}, Z), Y\right)
 \right]
-\right).$$
+\right).
+```
 
 - Sign based e-variables
 
-$$ E_{\mathrm{sgn}}^\lambda
+```math
+E_{\mathrm{sgn}}^\lambda
 = \mathbb{E}_{\widetilde{X}\mid Z}\!\left[
 1 + \lambda \text{ sign} \left(
 -\, l\!\left(m(X, Z), Y\right)
 + 
 l\!\left(m(\widetilde{X}, Z), Y\right)
-\right) \right].$$
+\right) \right].
+```
 
 - Tanh e-variables
 
-$$ E_{\mathrm{tanh}}^\lambda
+```math
+E_{\mathrm{tanh}}^\lambda
 =
 \mathbb{E}_{\widetilde{X}\mid Z}\!\left[
 1 + \lambda \tanh \left(
 -\, l\!\left(m(X, Z), Y\right)
 +
 l\!\left(m(\widetilde{X}, Z), Y\right)
-\right) \right].$$
+\right) \right].
+```
 
 
 - Exchangeability based e-variables:
 
-$$
- E_\mathrm{KDE}:= \mathbb{E}_{\widetilde{X}\mid Z}\!\left[ 1+\frac{f_q(q_t, \tilde{q}_t)-f_q(\tilde{q}_t, q_t)}{f_q(q_t, \tilde{q}_t)+f_q(\tilde{q}_t, q_t)} \right]. $$
+```math
+ E_\mathrm{KDE}:= \mathbb{E}_{\widetilde{X}\mid Z}\!\left[ 1+\frac{f_q(q_t, \tilde{q}_t)-f_q(\tilde{q}_t, q_t)}{f_q(q_t, \tilde{q}_t)+f_q(\tilde{q}_t, q_t)} \right].
+ ```
 
 
 
@@ -61,7 +67,8 @@ $$
 
 Approximaties the Model-X GRO with pseudo-probabilities
 
-$$ E_{\mathrm{exp}}^\eta
+```math
+E_{\mathrm{exp}}^\eta
 :=
 \frac{
 \exp\!\left(
@@ -73,13 +80,14 @@ $$ E_{\mathrm{exp}}^\eta
 -\eta\, l\!\left(m(\widetilde{X}, Z), Y\right)
 \right)
 \right]
-}. $$
+}.
+```
 
 
 
 ## Antisymmetric vs Exponential e-values
 
-When the density of $Y$ given $X$ and $Z$ is not in the exponentialted-loss form, the exponential e-variable is no longer optimal. We compare it experimentally to e-variables of the antisymmetric form and find settings where the latter ones dominate (on (simulated data)[src\experiments\simulations_dirichlet.py] and (real-world data)[src\experiments\toy_hiv_exp_n_train_800.ipynb] ).
+When the density of $Y$ given $X$ and $Z$ is not in the exponentialted-loss form, the exponential e-variable is no longer optimal. We compare it experimentally to e-variables of the antisymmetric form and find settings where the latter ones dominate (on [simulated data](src/experiments/simulations_dirichlet.py) and [real-world data](src/experiments/toy_hiv_exp_n_train_800.ipynb) ).
 
 
 ## How to run the code
