@@ -10,7 +10,7 @@ Conditional Independence Testing is a ubiquitous problem in scientific discovery
 
 ## Antisymmetric e-variables
 
-Make use of an antisymmetric function $g$ (i.e. $g(a, b) = - g (b, a)$) and an importance statistic $q$ which we take to be the loss used to train the model.
+Make use of an antisymmetric function $g$ (i.e. $`g(a,b) = -g(b,a)`$) and an importance statistic $q$ which we take to be the loss used to train the model.
 
 $1 + g(q_t,\tilde{q}_t).$
 

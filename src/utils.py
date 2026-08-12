@@ -41,20 +41,24 @@ def g_family_tanh(q, q_tilde, param, scale=20):
 def g_family_kde(q, q_tilde, param):
     raise NotImplementedError("This function is not implemented. Give an history to the input so that update_g_func_kernel_density will create a g_family.")
 
-def _prepare_kde_training_data(history, resamplings, window_size):
+def _prepare_kde_training_data(history, resamplings, window_size, one_dimesnional):
     X = []
 
     for q, q_tildes in history:
         B = min(resamplings, q_tildes.shape[0])
         if(window_size is not None and len(X) >= window_size):
             break
-        for i in range(B):
-            pairs = np.column_stack([
-                q,
-                q_tildes[i]
-            ])
+        if one_dimesnional:
+            diffs = np.array([q - q_tildes[i] for i in range(B)])
+            X.append(diffs.reshape(-1, 1))
+        else:
+            for i in range(B):
+                pairs = np.column_stack([
+                    q,
+                    q_tildes[i]
+                ])
 
-            X.append(pairs)
+                X.append(pairs)
 
     return np.vstack(X)
 
@@ -68,28 +72,32 @@ def _prepare_weight_vector(X, window_size):
     return weight_vector
 
 
-def _kde_g(kdes, q, q_tilde, param):
-    points = np.column_stack([q, q_tilde])
-    points_inverse = np.column_stack([q_tilde, q])
+def _kde_g(kdes, q, q_tilde, param, one_dimesnional = False):
+    if one_dimesnional:
+        points = np.asarray(q - q_tilde).reshape(-1, 1)
+        points_swapped = np.asarray(q_tilde - q).reshape(-1, 1)
+    else:
+        points = np.column_stack([q, q_tilde])
+        points_swapped = np.column_stack([q_tilde, q])
     key = (param["kernel"], param["bandwidth"])
     q_orig = np.exp(kdes[key].score_samples(points))
-    q_inverse = np.exp(kdes[key].score_samples(points_inverse))
+    q_swapped = np.exp(kdes[key].score_samples(points_swapped))
     eps = 1e-12
-    return (q_orig - q_inverse)/(q_orig + q_inverse + eps)
+    return (q_orig - q_swapped)/(q_orig + q_swapped + eps)
 
-def generate_update_kde(resamplings = 10, window_size = None):
-    return lambda history, parameters, g_family : update_g_func_kernel_density(history, parameters, g_family, resamplings = resamplings, window_size = window_size)
+def generate_update_kde(resamplings = 10, window_size = None, one_dimensional = False):
+    return lambda history, parameters, g_family : update_g_func_kernel_density(history, parameters, g_family, resamplings = resamplings, window_size = window_size, one_dimensional = one_dimensional)
 
-def update_g_func_kernel_density(history, parameters, g_family, resamplings = 10, window_size = None):
-    X = _prepare_kde_training_data(history, resamplings, window_size = window_size)
+
+def update_g_func_kernel_density(history, parameters, g_family, one_dimensional = False, resamplings = 10, window_size = None):
+    X = _prepare_kde_training_data(history, resamplings, window_size, one_dimensional)
     weight_vector = _prepare_weight_vector(X, window_size = window_size)
     kdes = {}
     for param in parameters:
         key = (param["kernel"], param["bandwidth"])
         kdes[key] = KernelDensity(kernel=param['kernel'], bandwidth=param['bandwidth']).fit(X, sample_weight=weight_vector)
 
-    return lambda q, q_tilde, param: _kde_g(kdes, q, q_tilde, param)
-
+    return lambda q, q_tilde, param: _kde_g(kdes, q, q_tilde, param, one_dimensional)
 
 def prepare_coin_betting_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10, M_start = 0.01, M_end = 5, M_num = 10):
     lam_values = np.linspace(lam_start, lam_end, lam_num)
@@ -100,7 +108,7 @@ def prepare_coin_betting_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10,
             parameters.append({"lambda": lam, "M": M})
     return parameters
 
-def prepare_kernel_density_parameters(kernel_list = ["gaussian", "tophat", "epanechnikov", 'exponential', 'linear'], bandwidth_start = 0.01, bandwidth_end = 3, bandwidth_num = 10):
+def prepare_kernel_density_parameters(kernel_list = ["gaussian", 'exponential'], bandwidth_start = 0.01, bandwidth_end = 3, bandwidth_num = 10):
     bandwidth_list = np.linspace(bandwidth_start, bandwidth_end, bandwidth_num)
     parameters = []
     for kernel in kernel_list:
@@ -118,7 +126,7 @@ def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10): # Fo
 def prepare_exponential_parameters(eta_start = 0.01, eta_end = 1, eta_num = 10): # For the exponential e-value
     return np.linspace(eta_start, eta_end, eta_num)
 
-def initialize_kde_history(X, y, samplers, j_list, batches = [5], splits = 5, batches_to_draw_randomly = 20, resamplings = 10, model= LassoCV(), loss= mean_squared_error ):
+def initialize_kde_history(X, y, samplers, j_list, batches = [5], splits = 5, batches_to_draw_randomly = 20, resamplings = 10, model= LassoCV(), loss= mean_squared_error):
     if(len(samplers) != len(j_list)):
         raise ValueError("The number of samplers should be equal to the number of features to be tested.")
 
