@@ -11,15 +11,15 @@ simplefilter("ignore", category=ConvergenceWarning)
 
 class ML_e_process:
     """
-    Conditional Testing with Machine Learning e-values
+    Conditional Independence Testing with Machine Learning based e-values
     """
 
-    def __init__(self, batch_list=[2, 5, 10], n_init=50, b_resamplings=20, study_j=[0],
+    def __init__(self, batch_list=[2, 5, 10], n_init=50, resamplings_for_betting=20, study_j=[0],
                  betting_strategies=None, model=LassoCV(),
                  samplers=None,
                  learn_conditional_distribution=True,
                  optional_stopping=True,
-                 bets_js_bs=None, 
+                 bets_js_bs=None
                  ):
         """
 
@@ -51,15 +51,20 @@ class ML_e_process:
         """
         self.batch_list = batch_list
         self.n_init = n_init
-        self.b_resamplings = b_resamplings
+        self.resamplings_for_betting = resamplings_for_betting
         self.study_j = study_j
-        if betting_strategies==None:
+
+        if betting_strategies == None and bets_js_bs == None:
             self.betting_strategies = {"kernel_bet": AntisymmetricBet()} #TODO: define default betting strategy
-            self.startegy_names = ["kernel_bet"]
-            
+            self.strategy_names = ["kernel_bet"]
+        elif betting_strategies == None and bets_js_bs != None:
+            # assumes we use the sames trategies across all j and b, so we can just take the first one
+            self.betting_strategies = None
+            self.strategy_names = list(bets_js_bs[self.study_j[0]][self.batch_list[0]].keys())
         else:
             self.betting_strategies = betting_strategies
-            self.startegy_names = list(betting_strategies.keys())
+            self.strategy_names = list(betting_strategies.keys())
+
         self.model = model
         self.models_dict = {} # For the online Lasso
         if samplers == None:
@@ -68,6 +73,7 @@ class ML_e_process:
             self.samplers = samplers
         self.learn_conditional_distribution = learn_conditional_distribution
         self.optional_stopping = optional_stopping
+
         if bets_js_bs == None:
             self.bets_js_bs = {
                     j: {
@@ -81,13 +87,13 @@ class ML_e_process:
                 }
         else:
             self.bets_js_bs = bets_js_bs
-            self.startegy_names = list(bets_js_bs[self.study_j[0]][self.batch_list[0]].keys())
+            self.strategy_names = list(bets_js_bs[self.study_j[0]][self.batch_list[0]].keys())
 
     def _sample_conditionals(self, X, feature_j):
-        X_j_tildes = np.empty((X.shape[0], self.b_resamplings))
+        X_j_tildes = np.empty((X.shape[0], self.resamplings_for_betting))
         sampler = self.samplers[feature_j]
 
-        for b in range(self.b_resamplings):
+        for b in range(self.resamplings_for_betting):
             X_j_tildes[:, b] = sampler.sample(X)
 
         return X_j_tildes
@@ -112,7 +118,7 @@ class ML_e_process:
                 }
                 for b in self.batch_list
             }
-            for strategy in self.startegy_names
+            for strategy in self.strategy_names
         }
 
         if start_idx is None:
@@ -137,7 +143,7 @@ class ML_e_process:
                     end = min(new_points + b, n)
                     for j in self.study_j:
                         X_j_tildes = self._sample_conditionals(X[new_points:end], j)
-                        for strategy in self.startegy_names:
+                        for strategy in self.strategy_names:
                             martingales[strategy][b][j][new_points:] *= (
                                 self.bets_js_bs[j][b][strategy].e_value(
                                     self.model,

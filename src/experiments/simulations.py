@@ -108,8 +108,9 @@ def main(args):
                     }
                     for j in list_js
                 }
+        kde_resamplings = 50
         samplers_kde_init = [DefaultSampler(j=j) for j in list_js]
-        q, q_tilde = initialize_kde_history(X[:n_init], Y[:n_init], samplers_kde_init, list_js, batch_list, model = model)
+        q, q_tilde = initialize_kde_history(X[:n_init], Y[:n_init], samplers_kde_init, list_js, batch_list, model=model, resamplings=kde_resamplings)
         for j in list_js:
             for b in batch_list:
                 params_kde = prepare_kernel_density_parameters()
@@ -136,7 +137,7 @@ def main(args):
         }# We use this just for the keys
 
         #batch_list = [1, 2, 5]
-        e_process = ML_e_process(batch_list=batch_list, n_init=n_init, b_resamplings=50, study_j=list_js,
+        e_process = ML_e_process(batch_list=batch_list, n_init=n_init, b_resamplings=kde_resamplings, study_j=list_js,
                         betting_strategies=betting_strategies, 
                         model=model,
                         #learn_conditional_distribution=get_data_statistics,
