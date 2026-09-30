@@ -15,7 +15,7 @@ from sklearn.linear_model import LassoCV
 
 from ExponentialBet import ExponentialBet  
 from AntisymmetricBet import AntisymmetricBet  # adjust import
-from utils import prepare_exponential_parameters, prepare_coin_betting_parameters, g_family_cb, update_g_func_static, prepare_lambda_parameters, g_family_tanh, g_family_sign
+from utils import prepare_exponential_parameters, prepare_coin_betting_parameters, g_family_generalized_sign, update_g_func_static, prepare_lambda_parameters, g_family_tanh, g_family_sign
 from utils import prepare_kernel_density_parameters, g_family_kde, update_g_func_kernel_density, initialize_kde_history
 
 from copy import deepcopy
@@ -59,7 +59,7 @@ def main(args):
 
         params_cb = prepare_coin_betting_parameters(lam_start = 0.01, lam_end = 0.95, lam_num = 10, M_start = 0.01, M_end = 5, M_num = 10)
         strategy_cb = AntisymmetricBet(
-            g_family= g_family_cb, 
+            g_family= g_family_generalized_sign, 
             update_g_func = update_g_func_static, 
             parameters=params_cb,
         )

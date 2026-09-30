@@ -17,6 +17,11 @@ class Sampler(ABC):
         """Return an (n,) vector of sampled values for feature j."""
         pass
 
+    @abstractmethod
+    def dump_params(self, X):
+        """Return the conditional sampler's parameters."""
+        pass
+
 
 class GaussianSampler(Sampler):
 
@@ -36,6 +41,11 @@ class GaussianSampler(Sampler):
         return self
 
     def sample(self, X):
+
+        mu_cond, sigma_cond = self._compute_conditionals(X)
+        return np.random.normal(mu_cond, sigma_cond)
+
+    def _compute_conditionals(self, X):
         mask = np.arange(X.shape[1]) != self.j
         X_minus = X[:, mask]
 
@@ -52,8 +62,11 @@ class GaussianSampler(Sampler):
             @ self.sigma_minus_inv
             @ self.sigma_minus_j
         )
+        return mu_cond, np.sqrt(sigma_cond)
 
-        return np.random.normal(mu_cond, np.sqrt(sigma_cond))
+    def dump_params(self, X):
+        mu_cond, sigma_cond = self._compute_conditionals(X)
+        return mu_cond, sigma_cond
 
 
 
@@ -132,4 +145,5 @@ class DefaultSampler(Sampler):
     def sample(self, X):
         return self.sampler.sample(X)
 
-                
+class DirichletSampler(Sampler):
+    pass

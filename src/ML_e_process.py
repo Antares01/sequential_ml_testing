@@ -1,10 +1,13 @@
 import numpy as np
+import ot
 from copy import deepcopy
 from AntisymmetricBet import AntisymmetricBet
 from sklearn.linear_model import LassoCV, Lasso
 from warnings import simplefilter
 from sklearn.exceptions import ConvergenceWarning
 from Sampler import DefaultSampler
+from utils import compute_wasserstein_distance
+
 
 simplefilter("ignore", category=ConvergenceWarning)
 
@@ -20,6 +23,10 @@ class ML_e_process:
                  learn_conditional_distribution=True,
                  optional_stopping=True,
                  bets_js_bs=None, 
+                 true_sampler =None,
+                 wasserstein_resamplings = 1000,
+                 true_model = None,
+                 test_data = None
                  ):
         """
 
@@ -48,6 +55,8 @@ class ML_e_process:
         :param sampling_func: This function gets X, j, and the additional arguments in sampling_args,
         and returns the dummy features X_tilde.
         :param sampling_args: A dictionary with all the non-learned arguments to pass to the sampling functions.
+        :param true_sampler: if given it is used to compute the Wasserstein distance, in the safety experiment it is a pair of (U, epsilon_variance)
+        :param true_model: if given it is used to compute the estimation error of `self.model` w.r.t. this one
         """
         self.batch_list = batch_list
         self.n_init = n_init
@@ -82,6 +91,12 @@ class ML_e_process:
         else:
             self.bets_js_bs = bets_js_bs
             self.startegy_names = list(bets_js_bs[self.study_j[0]][self.batch_list[0]].keys())
+        self.true_sampler = true_sampler
+        self.wasserstein_resamplings = wasserstein_resamplings
+        self.wasserstein_distances = []
+        self.true_model = true_model
+        self.estimation_errors = []
+        self.test_data = test_data
 
     def _sample_conditionals(self, X, feature_j):
         X_j_tildes = np.empty((X.shape[0], self.b_resamplings))
@@ -92,8 +107,21 @@ class ML_e_process:
 
         return X_j_tildes
 
+    def _compute_estimation_error(self):
+            loss = self.betting_strategies["coin betting"].loss
+            error_estimated_model = loss(self.model.predict(self.test_data[0]), self.test_data[1])
+            error_true_model = loss(self.true_model.predict(self.test_data[0]), self.test_data[1])
+            self.estimation_errors.append(error_estimated_model - error_true_model)
 
-    
+    def get_best_parameters(self):
+        best_params = {}
+        for j in self.study_j:
+            best_params[j] = {}
+            for b in self.batch_list:
+                best_params[j][b] = {}
+                for strategy in self.startegy_names:
+                    best_params[j][b][strategy] = self.bets_js_bs[j][b][strategy].get_best_parameters()
+        return best_params
 
     def martingales(self, X, y, start_idx=None):
         """
@@ -129,9 +157,14 @@ class ML_e_process:
         for new_points in update_points:
             # We first update the model and the conditional sampler
             self.model = self.model.fit(X[:new_points, :], y[:new_points].ravel())
+            self._compute_estimation_error()
             if self.learn_conditional_distribution:
                 for j in self.study_j:
                     self.samplers[j].fit(X[:new_points, :])
+                    if(self.true_sampler is not None):
+                            # record the distance between the estimated kernel and the true kernel
+                            self.wasserstein_distances.append(compute_wasserstein_distance(self.samplers[j], self.true_sampler, X[-1],  self.wasserstein_resamplings))
+
             for b in self.batch_list:
                 if new_points % b == 0:
                     end = min(new_points + b, n)

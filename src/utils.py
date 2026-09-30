@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import wasserstein_distance
 from sklearn.linear_model import LassoCV
 from sklearn.model_selection import KFold, cross_validate
 from sklearn.neighbors import KernelDensity
@@ -26,6 +27,13 @@ def update_g_func_static(history, parameters, g_family):
     return g_family
 
 def g_family_cb(q, q_tilde, param):
+    """
+    loss clipping (at 1) is done in this function, no need to give bounded loss to `AntisymmetricBet`
+    """
+    lambd = param['lambda']
+    return lambd/5.0 * (np.clip(q_tilde, 0, 5) - np.clip(q, 0, 5)) 
+
+def g_family_generalized_sign(q, q_tilde, param):
     lambd = param['lambda']
     bound = param['M'] 
     return lambd * np.clip(q_tilde - q, -bound, bound) / bound
@@ -116,14 +124,14 @@ def prepare_kernel_density_parameters(kernel_list = ["gaussian", 'exponential'],
             parameters.append({"kernel": kernel, "bandwidth": bandwidth})
     return parameters
 
-def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10): # For the sign and tanh e-value
+def prepare_lambda_parameters(lam_start = 0.01, lam_end = 1, lam_num = 10): # For the sign, coin betting and tanh e-value
     lam_values = np.linspace(lam_start, lam_end, lam_num)
     parameters = []
     for lam in lam_values:
             parameters.append({"lambda": lam})
     return parameters
 
-def prepare_exponential_parameters(eta_start = 0.01, eta_end = 1, eta_num = 10): # For the exponential e-value
+def prepare_exponential_parameters(eta_start = 0.01, eta_end = 5, eta_num = 10): # For the exponential e-value
     return np.linspace(eta_start, eta_end, eta_num)
 
 def initialize_kde_history(X, y, samplers, j_list, batches = [5], splits = 5, batches_to_draw_randomly = 20, resamplings = 10, model= LassoCV(), loss= mean_squared_error):
@@ -226,13 +234,68 @@ def return_model(regressor_name, seed):
     elif regressor_name == "gb":
         return GradientBoostingRegressor(random_state=seed)
     elif regressor_name == "nn":
-        return MLPRegressor(random_state=seed, max_iter=1000)
+        return MLPRegressor(hidden_layer_sizes=(50,50), random_state=seed, max_iter=1000)
     elif regressor_name == "svr":
         return SVR()
-    
+
+
+def compute_wasserstein_distance(sampler, true_sampler, X, resamplings):
+    X = np.asarray(X).reshape(1, -1)
+    X_j_tildes = np.empty((1, resamplings))
+    for b in range(resamplings):
+        X_j_tildes[:, b] = sampler.sample(X)
+    U, sigma_true = true_sampler
+    feature_j = sampler.j
+    mask = np.arange(X.shape[1]) != feature_j
+    X_minus = X[:, mask]
+    mu_true = (X_minus) @ U
+    X_tildes_true = np.random.normal(mu_true, sigma_true, size=(1, resamplings))
+    return wasserstein_distance(X_j_tildes.flatten(), X_tildes_true.flatten())
+
+    # attempt at exact computation of W2 from gaussians
+    #mu, sigma = sampler.dump_params(X)
+    #mu = torch.as_tensor(mu)
+    #sigma = torch.as_tensor(sigma)
+    #U, sigma_true = true_sampler
+    #mask = np.arange(X.shape[1]) != feature_j
+    #X_minus = X[:, mask]
+    #mu_true = torch.as_tensor((X_minus) @ U)
+    #sigma_true = torch.as_tensor(sigma_true)
+
+    #return ot.gaussian.bures_wasserstein_distance(mu, mu_true, sigma, sigma_true)
+
+
+def generate_dataset_safety_experiment(n, beta=1.0, d=19, seed=None):
+    """
+    Generates data with U and W gaussian instead of Dirichlet and returns the U matrix as well
+    """
+    rng = np.random.default_rng(seed)
+    stdev = 1
+
+    # Fixed parameters
+    W = rng.normal(size=d)
+    U = rng.normal(size=d)
+
+    # Generate Z ~ N(0, I_d)
+    Z = rng.normal(size=(n, d))
+
+    # Generate X | Z ~ N(U^T Z, 1)
+    X = Z @ U + rng.normal(scale =stdev, size=n)
+
+    # Generate Y
+    epsilon = rng.normal(size=n)
+    Y = (Z @ W) ** 2 + beta * X + epsilon
+
+    # Design matrix: first column is X, remaining columns are Z
+    X_design = np.column_stack((X, Z))
+
+    return X_design, Y, U, W, stdev
 
 
 def generate_dataset(n, beta=1.0, d=19, seed=None):
+    """
+    Generates data with U and W gaussian instead of Dirichlet
+    """
     rng = np.random.default_rng(seed)
 
     # Fixed parameters

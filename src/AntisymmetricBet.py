@@ -51,7 +51,7 @@ class AntisymmetricBet(BettingStrategy):
             bet += 1 + self.g_func(q, q_tilde)
         q_tildes = np.asarray(q_tildes)
         self.current_qs = (q, q_tildes)
-        return bet / X_j_tildes.shape[1]
+        return bet / X_j_tildes.shape[1] #this is averaged here over b_resample and inside 'get_statistic' over the batch size
     
     def wealth(self, model, x, x_j_tildes, y, j):
         self.wealths = self.derandomized_bet(model, x, x_j_tildes, y, j)
@@ -63,4 +63,5 @@ class AntisymmetricBet(BettingStrategy):
         self.past_martingales *= self.wealths
         #should this also update self.past_martingales?
 
-
+    def get_best_parameters(self):
+        return self.best_params

@@ -10,6 +10,8 @@ class BettingStrategy(ABC):
         self.past_martingales = np.ones(len(parameters))
         self.prequential = prequential
         self.proba = proba
+        if self.prequential:
+            self.best_params = []
     def __call__(self, a, b):
         pass
     
@@ -22,6 +24,7 @@ class BettingStrategy(ABC):
         if self.prequential:
             best_parameter_hat = np.argmax(self.past_martingales)
             e_value = wealths[best_parameter_hat]
+            self.best_params.append(self.parameters[best_parameter_hat])
         else:
             e_value = np.mean(wealths)
         return e_value
