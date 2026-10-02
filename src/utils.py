@@ -234,7 +234,7 @@ def return_model(regressor_name, seed):
     elif regressor_name == "gb":
         return GradientBoostingRegressor(random_state=seed)
     elif regressor_name == "nn":
-        return MLPRegressor(hidden_layer_sizes=(50,50), random_state=seed, max_iter=1000)
+        return MLPRegressor(hidden_layer_sizes=(50,50), random_state=seed, max_iter=1000, warm_start=True)
     elif regressor_name == "svr":
         return SVR()
 
@@ -242,15 +242,20 @@ def return_model(regressor_name, seed):
 def compute_wasserstein_distance(sampler, true_sampler, X, resamplings):
     X = np.asarray(X).reshape(1, -1)
     X_j_tildes = np.empty((1, resamplings))
+    X_j_tildes_reference = np.empty((1, resamplings))
     for b in range(resamplings):
         X_j_tildes[:, b] = sampler.sample(X)
+    for b in range(resamplings):
+        X_j_tildes_reference[:, b] = sampler.sample(X)    
     U, sigma_true = true_sampler
     feature_j = sampler.j
     mask = np.arange(X.shape[1]) != feature_j
     X_minus = X[:, mask]
     mu_true = (X_minus) @ U
     X_tildes_true = np.random.normal(mu_true, sigma_true, size=(1, resamplings))
-    return wasserstein_distance(X_j_tildes.flatten(), X_tildes_true.flatten())
+    distance = wasserstein_distance(X_j_tildes.flatten(), X_tildes_true.flatten()) 
+    reference_distance = wasserstein_distance(X_j_tildes_reference.flatten(), X_j_tildes.flatten()) 
+    return (distance, reference_distance)
 
     # attempt at exact computation of W2 from gaussians
     #mu, sigma = sampler.dump_params(X)

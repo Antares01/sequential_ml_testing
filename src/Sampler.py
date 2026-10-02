@@ -17,11 +17,6 @@ class Sampler(ABC):
         """Return an (n,) vector of sampled values for feature j."""
         pass
 
-    @abstractmethod
-    def dump_params(self, X):
-        """Return the conditional sampler's parameters."""
-        pass
-
 
 class GaussianSampler(Sampler):
 

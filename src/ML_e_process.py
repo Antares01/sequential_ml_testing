@@ -108,7 +108,8 @@ class ML_e_process:
         return X_j_tildes
 
     def _compute_estimation_error(self):
-            loss = self.betting_strategies["coin betting"].loss
+            strat = next(iter(self.betting_strategies))  
+            loss = self.betting_strategies[strat].loss
             error_estimated_model = loss(self.model.predict(self.test_data[0]), self.test_data[1])
             error_true_model = loss(self.true_model.predict(self.test_data[0]), self.test_data[1])
             self.estimation_errors.append(error_estimated_model - error_true_model)
@@ -157,7 +158,8 @@ class ML_e_process:
         for new_points in update_points:
             # We first update the model and the conditional sampler
             self.model = self.model.fit(X[:new_points, :], y[:new_points].ravel())
-            self._compute_estimation_error()
+            if self.true_model is not None and self.test_data is not None:
+                self._compute_estimation_error()
             if self.learn_conditional_distribution:
                 for j in self.study_j:
                     self.samplers[j].fit(X[:new_points, :])
@@ -166,7 +168,7 @@ class ML_e_process:
                             self.wasserstein_distances.append(compute_wasserstein_distance(self.samplers[j], self.true_sampler, X[-1],  self.wasserstein_resamplings))
 
             for b in self.batch_list:
-                if new_points % b == 0:
+                if (new_points - start_idx) % b == 0:
                     end = min(new_points + b, n)
                     for j in self.study_j:
                         X_j_tildes = self._sample_conditionals(X[new_points:end], j)
