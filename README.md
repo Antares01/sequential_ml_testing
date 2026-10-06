@@ -87,7 +87,7 @@ E_{\mathrm{exp}}^\eta
 
 ## Antisymmetric vs Exponential e-values
 
-When the density of $Y$ given $X$ and $Z$ is not in the exponentialted-loss form, the exponential e-variable is no longer optimal. We compare it experimentally to e-variables of the antisymmetric form and find settings where the latter ones dominate (on [simulated data](src/experiments/simulations_dirichlet.py) and [real-world data](src/experiments/toy_hiv_exp_n_train_800.ipynb) ).
+When the density of $Y$ given $X$ and $Z$ is not in the exponentialted-loss form, the exponential e-variable is no longer optimal. We compare it experimentally to e-variables of the antisymmetric form and find settings where the latter ones dominate (on [simulated data](src/experiments/simulations_dirichlet.py) and [real-world data](/src/experiments/hiv_simulations.py) ).
 
 
 ## How to run the code
@@ -96,11 +96,7 @@ When the density of $Y$ given $X$ and $Z$ is not in the exponentialted-loss form
     In this folder you can find the backend code for running experiments:
     - [Sampler.py](src/Sampler.py): Classes for samplers including the 'DefaultSampler', which automatically determines whether to sample a cathegorical or continuos variable. 
     - [ML_e_process.py](src/ML_e_process.py): Runs the betting strategies provided as input and computes prequentially the optimal hyperparameters. 
-- HIV data: in the 'data' folder it is possible to find the HIV mutations dataset used to produce the plots in the paper. The notebook for producing the plot is [this](src\experiments\toy_hiv_exp_n_train_800.ipynb) 
-
-
-
-
-This repository contains the code associated to https://icml.cc/virtual/2026/80061 . It is ongoing work.
+- HIV data: in the 'data' folder it is possible to find the HIV mutations dataset used to produce the plots in the paper. The script for producing the plot is [this](/src/experiments/hiv_simulations.py) 
+- Safety and triple robustness: an example showing how triple robustness contributes to safety can produced with [this script](ecrt/src/experiments/safety_simulations.py)
 
 
