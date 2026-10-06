@@ -64,4 +64,4 @@ class AntisymmetricBet(BettingStrategy):
         #should this also update self.past_martingales?
 
     def get_best_parameters(self):
-        return self.best_params
+        return {"best_params": self.best_params, "wealth_history": np.array(self.wealth_history)}

@@ -9,12 +9,12 @@ from scipy.interpolate import splprep, splev
 # ============================================================
 FONT_SCALE = 1.5
 
-BASE_NULLBOX_FONT = 19
-BASE_SETLABEL_FONT = 18
-BASE_POINT_FONT = 16
+BASE_NULLBOX_FONT = 26
+BASE_SETLABEL_FONT = 25
+BASE_POINT_FONT = 23
 BASE_ARROW_FONT = 14
 BASE_CAPTION_FONT = 13.5
-BASE_PANEL_FONT = 13
+BASE_PANEL_FONT = 16
 
 plt.rcParams.update(
     {
@@ -38,6 +38,7 @@ POINT_RED = "#B4502C"
 PANEL_TOP_FILL = "#FAFAF8"
 PANEL_BOTTOM_FILL = "#F5F7FA"
 PANEL_EDGE = "#BBBBBB"
+PANEL_LABEL = "#3A3A3A"
 
 # ============================================================
 # Layout constants (generously spaced so larger fonts still fit)
@@ -76,14 +77,14 @@ def add_panel(x0, y0, width, height, facecolor, edgecolor, label):
     )
     ax.add_patch(rect)
     ax.text(
-        x0 + 0.22,
+        x0 + 0.3,
         y0 + height / 2,
         label,
         ha="center",
         va="center",
         rotation=90,
         fontsize=BASE_PANEL_FONT * FONT_SCALE,
-        color=edgecolor,
+        color=PANEL_LABEL,
         style="italic",
         zorder=0,
     )
@@ -317,17 +318,17 @@ add_point(
     *Estar_L,
     r"$E^{\mathrm{X-CI}}$",
     POINT_BLUE,
-    ha="center",
-    dx=-0.6,
-    dy=0.0,
+    ha="right",
+    dx=-0.2,
+    dy=-0.05,
 )
 add_point(
     *Estar_R,
     r"$E^{\#}$",
     POINT_RED,
-    ha="center",
-    dx=0.5,
-    dy=-0.1,
+    ha="left",
+    dx=0.2,
+    dy=-0.05,
 )
 
 arrow(
@@ -427,8 +428,9 @@ add_point(
     ehat_L[1],
     r"$\widehat{E}^{\mathrm{X-CI}}$",
     POINT_BLUE,
-    dx=0.18,
+    dx=-0.18,
     dy=-0.10,
+    ha="right",
 )
 arrow(
     bx - 0.01,
@@ -436,7 +438,7 @@ arrow(
     ehat_L[0],
     ehat_L[1] + 0.15,
     text="estimation\nerror",
-    text_offset=(-0.8, -0.45),
+    text_offset=(-1.3, -0.15),
     color=POINT_BLUE,
 )
 
@@ -455,7 +457,7 @@ arrow(
     ehat_R[0],
     ehat_R[1] + 0.15,
     text="estimation\nerror",
-    text_offset=(0.95, 0.1),
+    text_offset=(2.3, -1.15),
     color=POINT_RED,
 )
 

@@ -8,6 +8,7 @@ class BettingStrategy(ABC):
         self.loss = loss
         self.parameters = parameters
         self.past_martingales = np.ones(len(parameters))
+        self.wealth_history = [] # cumulative wealth of every parameter after each bet
         self.prequential = prequential
         self.proba = proba
         if self.prequential:
@@ -21,6 +22,7 @@ class BettingStrategy(ABC):
 
     def e_value(self, model, x, x_j_tildes, y, j):
         wealths = self.wealth(model, x, x_j_tildes, y, j)
+        self.wealth_history.append(self.past_martingales * wealths) # past_martingales is multiplied by wealths in update()
         if self.prequential:
             best_parameter_hat = np.argmax(self.past_martingales)
             e_value = wealths[best_parameter_hat]

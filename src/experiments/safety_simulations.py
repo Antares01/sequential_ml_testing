@@ -71,7 +71,7 @@ def parse_args():
     parser.add_argument("--batches", type=list, default = [5, 10, 20], help = "list of batch sizes to test")
     parser.add_argument("--resamplings", type=int, default = 10, help = "number of resamplings for the martingale")
     parser.add_argument("--model", type=str, help="nn for neural network, tm for true model")
-    parser.add_argument("--strategy", type=str, default = "coin betting", help = "betting strategy to use")
+    parser.add_argument("--strategy", type=str, default = "coin_betting", help = "betting strategy to use")
     parser.add_argument("--n_jobs", type=int, default = 1, help = "number of seeds to run in parallel (one process per seed)")
     return parser.parse_args()
 
