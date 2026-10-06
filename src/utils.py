@@ -26,14 +26,14 @@ from sklearn.metrics import mean_squared_error, log_loss
 def update_g_func_static(history, parameters, g_family):
     return g_family
 
-def g_family_cb(q, q_tilde, param):
+def g_family_cb_clipped(q, q_tilde, param):
     """
     loss clipping (at 1) is done in this function, no need to give bounded loss to `AntisymmetricBet`
     """
     lambd = param['lambda']
     return lambd/5.0 * (np.clip(q_tilde, 0, 5) - np.clip(q, 0, 5)) 
 
-def g_family_generalized_sign(q, q_tilde, param):
+def g_family_cb(q, q_tilde, param):
     lambd = param['lambda']
     bound = param['M'] 
     return lambd * np.clip(q_tilde - q, -bound, bound) / bound

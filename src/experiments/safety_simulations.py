@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from AntisymmetricBet import AntisymmetricBet
 from ML_e_process import ML_e_process
 import pickle
-from utils import g_family_cb, g_family_sign, generate_dataset_safety_experiment, return_model, prepare_lambda_parameters,  update_g_func_static
+from utils import g_family_cb_clipped, g_family_sign, generate_dataset_safety_experiment, return_model, prepare_lambda_parameters,  update_g_func_static
 from Sampler import GaussianSampler, Sampler
 
 class TrueModel:
@@ -49,7 +49,7 @@ def get_strategy(name):
     if name == "coin_betting":
         params_gs = prepare_lambda_parameters()
         return AntisymmetricBet(
-            g_family=g_family_cb,
+            g_family=g_family_cb_clipped,
             update_g_func=update_g_func_static,
             parameters=params_gs,
         )

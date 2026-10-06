@@ -21,7 +21,7 @@ from ExponentialBet import ExponentialBet
 from ML_e_process import ML_e_process
 from Sampler import DefaultSampler, ProbaSampler, RegressorSampler
 from utils import (
-    g_family_generalized_sign,
+    g_family_cb,
     g_family_kde,
     g_family_sign,
     g_family_tanh,
@@ -98,7 +98,7 @@ def build_strategies(names):
         )
     if "generalized_sign" in names:
         strategies["generalized_sign"] = AntisymmetricBet(
-            g_family=g_family_generalized_sign,
+            g_family=g_family_cb,
             update_g_func=update_g_func_static,
             parameters=prepare_coin_betting_parameters(lam_start=0.01, lam_end=0.95, lam_num=10, M_start=0.01, M_end=5, M_num=10),
         )
